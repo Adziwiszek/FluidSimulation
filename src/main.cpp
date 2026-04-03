@@ -74,13 +74,15 @@ int main() {
 
   Shader shader("shaders/vertexShader", "shaders/fragmentShader");
 
+  buildCircle(0.1, 32);
+
   glGenVertexArrays(1, &vertexArray);
   glGenBuffers(1, &vertexBuffer);
 
   glBindVertexArray(vertexArray);
   glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
 
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_t), vertices_t, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
 
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
 
@@ -97,7 +99,7 @@ int main() {
     shader.use();
 
     glBindVertexArray(vertexArray);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
     glfwSwapBuffers(window);
     glfwPollEvents();
