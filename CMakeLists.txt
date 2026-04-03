@@ -10,14 +10,15 @@ set(CMAKE_CXX_STANDARD 23)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 
-include_directories(include)
+add_subdirectory(extern/glad)
 
 add_executable(${PROJECT_NAME}    
   src/main.cpp
-  src/glad.c
 )
 
 target_link_libraries(${PROJECT_NAME}
-  OpenGL::GL
-  glfw
+  PUBLIC
+    glad_loader
+    OpenGL::GL
+    glfw
 )
