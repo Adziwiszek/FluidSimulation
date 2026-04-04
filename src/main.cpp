@@ -5,6 +5,7 @@
 #include <Shader.hpp>
 #include <iostream>
 #include <vector>
+#include <array>
 
 std::vector<glm::vec3> vertices;
 std::vector<unsigned int> indices;
@@ -40,20 +41,77 @@ void buildCircle(float radius, int vCount) {
   }
 }
 
-float vertices_t[] = {
-    -0.8f, -0.6f, 0.0f,
-    0.3f, -0.4f, 0.0f,
-    0.0f, 0.2f, 0.0f};
-
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
+/* 0 -> X
+ * 1 -> Y */
 constexpr int NDIM = 2;
-constexpr float O[NDIM] = {0.0f, 0.0f};
-constexpr unsigned int L[NDIM] = {10, 10};
-constexpr unsigned int N[NDIM] = {10, 10};
-// constexpr float D[NDIM] = ... // like in python [L[i]/N[i] for i in range(NDIM)]
+
+/* Origin */
+constexpr std::array<float, NDIM>        O = {0.0f, 0.0f};
+/* Size of the grid */
+constexpr std::array<unsigned int, NDIM> L = {10, 10};
+/* Number of cells in each coordinate */
+constexpr std::array<unsigned int, NDIM> N = {10, 10};
+
+/* Size of each voxel */
+constexpr auto D = [] {
+  std::array<float, NDIM> d{};
+  for(int i = 0; i < NDIM; i++)
+    d[i] = static_cast<float>(L[i]) / N[i];
+  return d;
+}();
+
+glm::mat4 proj = glm::ortho(
+    O[0], O[0] + L[1],
+    O[1], O[1] + L[1]
+);
+
+/* Class to manage simulation grid.
+ *
+ * velocityX and velocityY store velocities at borders of the grid squares
+ * (that's why there is N[0] + 1).
+ *
+ * solid tells us if given square is a solid. If so we don't take use it in the
+ * simulation. */
+class FluidGrid {
+private:
+  float overRelaxation{1.9};
+public:
+  std::array<std::array<float, N[0] + 1>, N[1]> velocityX{};
+  std::array<std::array<float, N[1] + 1>, N[0]> velocityY{};
+  std::array<std::array<int, N[0] + 2>, N[1] + 2> solid{};
+
+  void solveIncompressibility(int numIter, float dt) {
+    for(int ni = 0; ni < numIter; ni++) {
+      for(int row = 1; row < N[1]; row++) {
+        for(int col = 1; col < N[0]; col++) {
+          if(solid[row][col])
+            continue;
+
+          auto sl = solid[row][col-1];
+          auto sr = solid[row][col+1];
+          auto su = solid[row-1][col];
+          auto sd = solid[row+1][col];
+          auto s = sl + sr + su + sd;
+          if(s == 0.0)
+            continue;
+
+          float d = velocityX[row][col] - velocityX[row][col-1] +
+                   velocityY[row-1][col] - velocityY[row][col];
+          float p = overRelaxation * (- d / s);
+
+          velocityX[row][col]   -= sr * p;
+          velocityX[row][col-1] -= sl * p;
+          velocityY[row-1][col] -= su * p;
+          velocityY[row][col]   -= sd * p;
+        }
+      }
+    }
+  }
+};
 
 int main() {
   if (!glfwInit()) {
@@ -83,6 +141,7 @@ int main() {
   Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
   buildCircle(0.1, 32);
+  glm::vec3 circleCenter = {5, 5, 0};
 
   // buffer
   glGenVertexArrays(1, &vertexArray);
@@ -107,19 +166,21 @@ int main() {
       &indices[0], GL_STATIC_DRAW);
 
 
-  glViewport(0, 0, 800, 600);
+  glViewport(0, 0, 800, 800);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   bool simulating = true;
 
   while (!glfwWindowShouldClose(window)) {
-    glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     if(simulating) {
     }
 
     shader.use();
+    shader.setMat4("proj", proj);
+    shader.setVec3("offset", circleCenter);
 
     glBindVertexArray(vertexArray);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
