@@ -1,6 +1,12 @@
 #version 330 core
+
+in vec2 UV;
 out vec4 fragColor;
+
+uniform sampler2D smokeMap;
+
 void main()
 {
-  fragColor = vec4(0.0f, 0.5f, 1.0f, 1.0f);
+  float smoke = texture(smokeMap, UV).r;
+  fragColor = vec4(smoke, smoke, smoke, 1.0f);
 }
