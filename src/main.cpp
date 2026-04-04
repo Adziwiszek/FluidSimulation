@@ -49,6 +49,12 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
+constexpr int NDIM = 2;
+constexpr float O[NDIM] = {0.0f, 0.0f};
+constexpr unsigned int L[NDIM] = {10, 10};
+constexpr unsigned int N[NDIM] = {10, 10};
+// constexpr float D[NDIM] = ... // like in python [L[i]/N[i] for i in range(NDIM)]
+
 int main() {
   if (!glfwInit()) {
     std::cerr << "Failed to initialize GLFW\n";
@@ -60,7 +66,7 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   GLFWwindow *window =
-      glfwCreateWindow(800, 600, "Hello OpenGL", nullptr, nullptr);
+      glfwCreateWindow(800, 800, "Hello OpenGL", nullptr, nullptr);
   if (!window) {
     std::cerr << "Failed to create window\n";
     glfwTerminate();
@@ -104,9 +110,14 @@ int main() {
   glViewport(0, 0, 800, 600);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+  bool simulating = true;
+
   while (!glfwWindowShouldClose(window)) {
     glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    if(simulating) {
+    }
 
     shader.use();
 
