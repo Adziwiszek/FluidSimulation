@@ -7,9 +7,12 @@
 #include <vector>
 
 std::vector<glm::vec3> vertices;
+std::vector<unsigned int> indices;
 
 unsigned int vertexBuffer;
 unsigned int vertexArray;
+
+unsigned int elementBuffer;
 
 /* source: https://faun.pub/draw-circle-in-opengl-c-2da8d9c2c103 
  * access: 03.04.2026 */
@@ -18,7 +21,6 @@ void buildCircle(float radius, int vCount) {
 
   int triangleCount = vCount - 2;
 
-  std::vector<glm::vec3> temp;
   // positions
   for (int i = 0; i < vCount; i++)
   {
@@ -27,14 +29,14 @@ void buildCircle(float radius, int vCount) {
       float y = radius * sin(glm::radians(currentAngle));
       float z = 0.0f;
 
-      temp.push_back(glm::vec3(x, y, z));
+      vertices.push_back(glm::vec3(x, y, z));
   }
 
   for (int i = 0; i < triangleCount; i++)
   {
-      vertices.push_back(temp[0]);
-      vertices.push_back(temp[i + 1]);
-      vertices.push_back(temp[i + 2]);
+      indices.push_back(0);
+      indices.push_back(i + 1);
+      indices.push_back(i + 2);
   }
 }
 
@@ -72,21 +74,31 @@ int main() {
     return -1;
   }
 
-  Shader shader("shaders/vertexShader", "shaders/fragmentShader");
+  Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
   buildCircle(0.1, 32);
 
+  // buffer
   glGenVertexArrays(1, &vertexArray);
   glGenBuffers(1, &vertexBuffer);
+
+  // element buffer object
+  glGenBuffers(1, &elementBuffer);
 
   glBindVertexArray(vertexArray);
   glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
 
-  glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+  // copying
+  glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(),
+      &vertices[0], GL_STATIC_DRAW);
 
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
 
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffer);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(),
+      &indices[0], GL_STATIC_DRAW);
 
 
   glViewport(0, 0, 800, 600);
@@ -99,7 +111,7 @@ int main() {
     shader.use();
 
     glBindVertexArray(vertexArray);
-    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
     glfwSwapBuffers(window);
     glfwPollEvents();
