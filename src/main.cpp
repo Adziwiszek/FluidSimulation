@@ -10,8 +10,35 @@
 #include <vector>
 #include <bits/stdc++.h>
 
+using std::printf;
+
+void ASSERT(bool expr, std::string msg) {
+  if(!expr) {
+    std::cout << "Failed assert: " << msg << std::endl;
+    exit(1);
+  }
+}
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
+}
+
+bool space_clicked = false;
+
+void processInput(GLFWwindow *window, bool *simulating) {
+  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+    glfwSetWindowShouldClose(window, true);
+  }
+
+  
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !space_clicked) {
+    *simulating = !*simulating;
+    space_clicked = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE && space_clicked) {
+    *simulating = !*simulating;
+    space_clicked = false;
+  }
 }
 
 /* 0 -> X
@@ -41,41 +68,69 @@ glm::mat4 proj = glm::ortho(O[0], O[0] + L[1], O[1], O[1] + L[1]);
  * (that's why there is N[0] + 1).
  *
  * solid tells us if given square is a solid. If so we don't take use it in the
- * simulation. */
+ * simulation. 
+ *
+ * Inspiration and reference: https://www.youtube.com/watch?v=iKAVRgIrUOU
+ * */
 class FluidGrid {
-  float overRelaxation{1.9};
-public:
-  std::array<std::array<float, N[0] + 1>, N[1]> velocityX{};
-  std::array<std::array<float, N[1] + 1>, N[0]> velocityY{};
-  std::array<std::array<int, N[0] + 2>, N[1] + 2> solid{};
-  std::array<std::array<float, N[0]>, N[1]> smoke{};
+  float overRelaxation{1.5};
+  float h;
 
-  FluidGrid() {
-    for(int j = 0; j < N[1]; j++) {
-      for(int i = 0; i < N[0]; i++) {
-        smoke[j][i] = ((double)rand()) / RAND_MAX;
+  enum FieldType {
+    U_FIELD,
+    V_FIELD,
+    S_FIELD,
+  };
+public:
+  std::array<std::array<float, N[0] + 2>, N[1] + 2> velocityX{};
+  std::array<std::array<float, N[0] + 2>, N[1] + 2> velocityY{};
+  std::array<std::array<int, N[0] + 2>, N[1] + 2> solid{};
+  std::array<std::array<float, N[0] + 2>, N[1] + 2> smoke{};
+
+  FluidGrid(float h) 
+    : h{h} 
+  {
+    for (int row = 1; row < N[1]; row++) {
+      for (int col = 1; col < N[0]; col++) {
+          solid[row][col] = 1;
+          smoke[row][col] = ((double)rand()) / RAND_MAX;
+          velocityX[row][col] = 0.0;
+          velocityY[row][col] = 0.0;
+      }
+    }
+    injectInlet(1.0);
+  }
+
+  void integrate(float dt, float gravity) {
+    for (int row = 1; row < N[1]; row++) {
+      for (int col = 1; col < N[0]; col++) {
+        if(smoke[row][col] != 0.0 && smoke[row][col - 1] != 0.0) {
+          velocityY[row][col] += gravity * dt;
+        }
       }
     }
   }
 
   void solveIncompressibility(int numIter, float dt) {
     float total_div = 0;
+
     for (int ni = 0; ni < numIter; ni++) {
       for (int row = 1; row < N[1]; row++) {
         for (int col = 1; col < N[0]; col++) {
-          if (solid[row][col])
+          if (smoke[row][col] == 0)
             continue;
 
-          auto sl = solid[row][col - 1];
-          auto sr = solid[row][col + 1];
-          auto su = solid[row - 1][col];
-          auto sd = solid[row + 1][col];
+          auto sl = smoke[row][col - 1];
+          auto sr = smoke[row][col + 1];
+          auto su = smoke[row - 1][col];
+          auto sd = smoke[row + 1][col];
           auto s = sl + sr + su + sd;
           if (s == 0.0)
             continue;
 
           float d = velocityX[row][col] - velocityX[row][col - 1] +
                     velocityY[row - 1][col] - velocityY[row][col];
+          //printf("d = %f\n", d);
           total_div += d;
           float p = overRelaxation * (-d / s);
 
@@ -86,17 +141,172 @@ public:
         }
       }
     }
-    std::cout << "divergence = " << total_div << "\r";
-    
+    std::cout << "divergence = " << total_div << "\n";
+  }
+
+  /* Extrapolates velocity values near the border to border cells. */
+  void extrapolate() {
+    for(int row = 0; row <= N[1]; row++) {
+      velocityX[row][0] = velocityX[row][1];
+      velocityX[row][N[0]] = velocityX[row][N[0] - 1];
+    }
+    for(int col = 0; col <= N[0]; col++) {
+      velocityY[0][col] = velocityY[1][col];
+      velocityY[N[1]][col] = velocityY[N[1] - 1][col];
+    }
+  }
+
+  float sampleField(float x, float y, FieldType field) {
+    float h1 = 1.0 / h;
+    float h2 = 0.5 * h;
+
+    x = std::max(std::min(x, static_cast<float>(N[0]) * h), h); 
+    y = std::max(std::min(y, static_cast<float>(N[1]) * h), h); 
+
+    float dx = 0.0;
+    float dy = 0.0;
+
+    switch(field) {
+      case U_FIELD: dy = h2; break;
+      case V_FIELD: dx = h2; break;
+      case S_FIELD: dx = h2; dy = h2; break;
+    }
+
+    int x0 = std::min(
+        static_cast<int>(std::floor((x - dx) * h1)), 
+        static_cast<int>(N[0]) - 1
+        );
+    float tx = ((x - dx) - x0 * h) * h1;
+    int x1 = std::min(x0 + 1, static_cast<int>(N[0]) - 1);
+
+    int y0 = std::min(
+        static_cast<int>(std::floor((y - dy) * h1)), 
+        static_cast<int>(N[1]) - 1
+        );
+    float ty = ((y - dy) - y0 * h) * h1;
+    int y1 = std::min(y0 + 1, static_cast<int>(N[1]) - 1);
+
+    float sx = 1.0 - tx;
+    float sy = 1.0 - ty;
+
+    switch(field) {
+      case U_FIELD:
+        return
+          sx * sy * (velocityX[y0][x0]) +
+          tx * sy * (velocityX[y0][x1]) +
+          tx * ty * (velocityX[y1][x1]) +
+          sx * ty * (velocityX[y1][x0]);
+      case V_FIELD:
+        return
+          sx * sy * (velocityY[y0][x0]) +
+          tx * sy * (velocityY[y0][x1]) +
+          tx * ty * (velocityY[y1][x1]) +
+          sx * ty * (velocityY[y1][x0]);
+      case S_FIELD:
+        return
+          sx * sy * (smoke[y0][x0]) +
+          tx * sy * (smoke[y0][x1]) +
+          tx * ty * (smoke[y1][x1]) +
+          sx * ty * (smoke[y1][x0]);
+    } 
+    assert(false);
   }
 
   void advectVelocity(float dt) {
+    std::array<std::array<float, N[0] + 2>, N[1] + 2> newVelocityX{};
+    std::array<std::array<float, N[0] + 2>, N[1] + 2> newVelocityY{};
+
+    float h2 = 0.5 * h;
+
+    for (int row = 1; row < N[1]; row++) {
+      for (int col = 1; col < N[0]; col++) {
+        // horizontal component
+        if(smoke[row][col] != 0.0 && smoke[row][col - 1] && row < N[1] - 1) {
+          float x = col * h + h2;
+          float y = row * h;
+          float u = velocityX[row][col];
+          float v = avgVelocityY(row, col);
+          x = x - dt * u;
+          y = y - dt * v;
+          u = sampleField(x, y, U_FIELD);
+          newVelocityX[row][col] = u;
+        }
+        // vertical component
+        if(smoke[row][col] != 0.0 && smoke[row - 1][col] && col < N[0] - 1) {
+          float x = col * h + h2;
+          float y = row * h;
+          float u = avgVelocityX(row, col);
+          float v = velocityY[row][col];
+          x = x - dt * u;
+          y = y - dt * v;
+          v = sampleField(x, y, V_FIELD);
+          newVelocityY[row][col] = v;
+        }
+      }
+    }
+
+    velocityX = newVelocityX;
+    velocityY = newVelocityY;
   }
 
   void advectSmoke(float dt) {
+    std::array<std::array<float, N[0] + 2>, N[1] + 2> newSmoke{};
+    float h2 = 0.5 * h;
+
+    for (int row = 1; row < N[1]; row++) {
+      for (int col = 1; col < N[0]; col++) {
+        if(smoke[row][col] != 0.0) {
+          float u = (velocityX[row][col] + velocityX[row + 1][col]) * 0.5;
+          float v = (velocityY[row][col] + velocityY[row][col + 1]) * 0.5;
+          float x = col * h + h2 - dt * u;
+          float y = row * h + h2 - dt * v;
+          newSmoke[row][col] = sampleField(x, y, S_FIELD);
+        }
+      }
+    }
+    smoke = newSmoke;
   }
 
   void placeSmoke(float x, float y, float radius) {
+  }
+
+  float avgVelocityY(int row, int col) {
+    return (
+      velocityY[row - 1][col + 1] +
+      velocityY[row][col + 1] +
+      velocityY[row - 1][col] +
+      velocityY[row][col]
+      ) * 0.25;
+  }
+
+  float avgVelocityX(int row, int col) {
+    return (
+      velocityX[row][col + 1] +
+      velocityX[row][col] +
+      velocityX[row + 1][col + 1] +
+      velocityX[row + 1][col]
+      ) * 0.25;
+  }
+
+  void injectInlet(float speed) {
+    int mid = N[1] / 2;
+    int r = N[1] / 8;
+    for (int row = mid - r; row <= mid + r; row++) {
+        velocityX[row][1] = speed;
+        smoke[row][1] = 1.0f;
+    }
+}
+
+  void simulate(float dt, float gravity, int numIters) {
+    // injectInlet(0.0001 * dt);
+
+    integrate(dt, gravity);
+
+    solveIncompressibility(numIters, dt);
+
+    extrapolate();
+    advectVelocity(dt);
+    advectSmoke(dt);
   }
 };
 
@@ -232,11 +442,13 @@ int main() {
 
   Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
-  FluidGrid simulation;
+  FluidGrid simulation(D[0]);
   GridRenderer renderer(simulation);
   renderer.buildGrid();
 
   bool simulating = true;
+  float gravity = 0.0;
+  int numIters = 1;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
   while (!glfwWindowShouldClose(window)) {
@@ -244,13 +456,16 @@ int main() {
     std::chrono::duration<float> dtChrono = currentTime - prevTime;
     prevTime = currentTime;
     float dt = dtChrono.count();
-    // std::cout << "delta time = " << dt << "\r";
+    float sim_dt = dt / 1000;
+    std::cout << "delta time = " << sim_dt << ", FPS = " << 1.0 / dt << "\n";
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    processInput(window, &simulating);
+
     if (simulating) {
-      simulation.solveIncompressibility(10, dt);
+      simulation.simulate(sim_dt, gravity, numIters); 
     }
 
     renderer.updateTexture();
