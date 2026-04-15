@@ -36,7 +36,6 @@ void processInput(GLFWwindow *window, bool *simulating) {
     space_clicked = true;
   }
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE && space_clicked) {
-    *simulating = !*simulating;
     space_clicked = false;
   }
 }
@@ -46,7 +45,7 @@ void processInput(GLFWwindow *window, bool *simulating) {
 constexpr int NDIM = 2;
 
 /* Origin */
-constexpr std::array<float, NDIM> O = {0.0f, 0.0f};
+constexpr std::array<float, NDIM> Origin = {0.0f, 0.0f};
 /* Size of the grid */
 constexpr std::array<unsigned int, NDIM> L = {10, 10};
 /* Number of cells in each coordinate */
@@ -60,7 +59,7 @@ constexpr auto D = [] {
   return d;
 }();
 
-glm::mat4 proj = glm::ortho(O[0], O[0] + L[1], O[1], O[1] + L[1]);
+glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[1], Origin[1], Origin[1] + L[1]);
 
 /* Class to manage simulation grid.
  *
@@ -90,21 +89,32 @@ public:
   FluidGrid(float h) 
     : h{h} 
   {
+    // set solid values for border fields
+    for(int row = 0; row <= N[1]; row++) {
+      solid[row][0] = 1;
+      solid[row][N[0]] = 0;
+    }
+    for(int col = 0; col <= N[0]; col++) {
+      solid[0][col] = 1;
+      solid[N[1]][col] = 1;
+    }
     for (int row = 1; row < N[1]; row++) {
       for (int col = 1; col < N[0]; col++) {
-          solid[row][col] = 1;
-          smoke[row][col] = ((double)rand()) / RAND_MAX;
+          solid[row][col] = 0;
+          smoke[row][col] = 0.01;
+          //smoke[row][col] = ((double)rand()) / RAND_MAX;
           velocityX[row][col] = 0.0;
           velocityY[row][col] = 0.0;
       }
     }
-    injectInlet(1.0);
+    //injectInlet(1.0);
+    //velocityY[3][3] = -1.0;
   }
 
   void integrate(float dt, float gravity) {
     for (int row = 1; row < N[1]; row++) {
       for (int col = 1; col < N[0]; col++) {
-        if(smoke[row][col] != 0.0 && smoke[row][col - 1] != 0.0) {
+        if(solid[row][col] == 0.0 && solid[row - 1][col] == 0.0) {
           velocityY[row][col] += gravity * dt;
         }
       }
@@ -117,13 +127,13 @@ public:
     for (int ni = 0; ni < numIter; ni++) {
       for (int row = 1; row < N[1]; row++) {
         for (int col = 1; col < N[0]; col++) {
-          if (smoke[row][col] == 0)
+          if (solid[row][col] == 1)
             continue;
 
-          auto sl = smoke[row][col - 1];
-          auto sr = smoke[row][col + 1];
-          auto su = smoke[row - 1][col];
-          auto sd = smoke[row + 1][col];
+          auto sl = 1 - solid[row][col - 1];
+          auto sr = 1 - solid[row][col + 1];
+          auto su = 1 - solid[row - 1][col];
+          auto sd = 1 - solid[row + 1][col];
           auto s = sl + sr + su + sd;
           if (s == 0.0)
             continue;
@@ -134,9 +144,9 @@ public:
           total_div += d;
           float p = overRelaxation * (-d / s);
 
-          velocityX[row][col] -= sr * p;
+          velocityX[row][col] += sr * p;
           velocityX[row][col - 1] -= sl * p;
-          velocityY[row - 1][col] -= su * p;
+          velocityY[row - 1][col] += su * p;
           velocityY[row][col] -= sd * p;
         }
       }
@@ -221,9 +231,10 @@ public:
     for (int row = 1; row < N[1]; row++) {
       for (int col = 1; col < N[0]; col++) {
         // horizontal component
-        if(smoke[row][col] != 0.0 && smoke[row][col - 1] && row < N[1] - 1) {
-          float x = col * h + h2;
-          float y = row * h;
+        if (solid[row][col] == 0.0 && solid[row][col - 1] == 0.0 &&
+            row < N[1] - 1) {
+          float x = col * h ;
+          float y = row * h+ h2;
           float u = velocityX[row][col];
           float v = avgVelocityY(row, col);
           x = x - dt * u;
@@ -232,9 +243,10 @@ public:
           newVelocityX[row][col] = u;
         }
         // vertical component
-        if(smoke[row][col] != 0.0 && smoke[row - 1][col] && col < N[0] - 1) {
-          float x = col * h + h2;
-          float y = row * h;
+        if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0 &&
+            col < N[0] - 1) {
+          float x = col * h;
+          float y = row * h + h2;
           float u = avgVelocityX(row, col);
           float v = velocityY[row][col];
           x = x - dt * u;
@@ -255,9 +267,9 @@ public:
 
     for (int row = 1; row < N[1]; row++) {
       for (int col = 1; col < N[0]; col++) {
-        if(smoke[row][col] != 0.0) {
-          float u = (velocityX[row][col] + velocityX[row + 1][col]) * 0.5;
-          float v = (velocityY[row][col] + velocityY[row][col + 1]) * 0.5;
+        if(solid[row][col] == 0) {
+          float u = avgVelocityX(row, col);
+          float v = avgVelocityY(row, col);
           float x = col * h + h2 - dt * u;
           float y = row * h + h2 - dt * v;
           newSmoke[row][col] = sampleField(x, y, S_FIELD);
@@ -272,33 +284,34 @@ public:
 
   float avgVelocityY(int row, int col) {
     return (
-      velocityY[row - 1][col + 1] +
-      velocityY[row][col + 1] +
-      velocityY[row - 1][col] +
-      velocityY[row][col]
+      velocityY[row][col] +
+      velocityY[row + 1][col] +
+      velocityY[row][col - 1] +
+      velocityY[row + 1][col - 1]
       ) * 0.25;
   }
 
   float avgVelocityX(int row, int col) {
     return (
-      velocityX[row][col + 1] +
       velocityX[row][col] +
-      velocityX[row + 1][col + 1] +
-      velocityX[row + 1][col]
+      velocityX[row][col + 1] +
+      velocityX[row - 1][col] +
+      velocityX[row - 1][col + 1]
       ) * 0.25;
   }
 
   void injectInlet(float speed) {
     int mid = N[1] / 2;
-    int r = N[1] / 8;
+    int r = N[1] / 16;
     for (int row = mid - r; row <= mid + r; row++) {
         velocityX[row][1] = speed;
-        smoke[row][1] = 1.0f;
+        for(int width = 1; width < 3; width++)
+          smoke[row][width] = 1;
     }
-}
+  }
 
   void simulate(float dt, float gravity, int numIters) {
-    // injectInlet(0.0001 * dt);
+    injectInlet(50);
 
     integrate(dt, gravity);
 
@@ -349,8 +362,8 @@ public:
 
     for(unsigned int i = 0; i <= N[0]; i++) {
       for(unsigned int j = 0; j <= N[1]; j++) {
-        float x = O[0] + i * D[0];
-        float y = O[1] + j * D[1];
+        float x = Origin[0] + i * D[0];
+        float y = Origin[1] + j * D[1];
         vertices.push_back({x, y, 0});
       }
     }
@@ -448,7 +461,7 @@ int main() {
 
   bool simulating = true;
   float gravity = 0.0;
-  int numIters = 1;
+  int numIters = 10;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
   while (!glfwWindowShouldClose(window)) {
@@ -456,7 +469,7 @@ int main() {
     std::chrono::duration<float> dtChrono = currentTime - prevTime;
     prevTime = currentTime;
     float dt = dtChrono.count();
-    float sim_dt = dt / 1000;
+    float sim_dt = dt;
     std::cout << "delta time = " << sim_dt << ", FPS = " << 1.0 / dt << "\n";
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
