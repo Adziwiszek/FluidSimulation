@@ -49,7 +49,10 @@ constexpr std::array<float, NDIM> Origin = {0.0f, 0.0f};
 /* Size of the grid */
 constexpr std::array<unsigned int, NDIM> L = {10, 10};
 /* Number of cells in each coordinate */
-constexpr std::array<unsigned int, NDIM> N = {100, 100};
+constexpr std::array<unsigned int, NDIM> N = {120, 80};
+
+constexpr size_t WINDOW_WIDTH = L[0] * N [0];
+constexpr size_t WINDOW_HEIGHT = L[1] * N [1];
 
 /* Size of each voxel */
 constexpr auto D = [] {
@@ -59,7 +62,7 @@ constexpr auto D = [] {
   return d;
 }();
 
-glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[1], Origin[1], Origin[1] + L[1]);
+glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[0], Origin[1], Origin[1] + L[1]);
 
 /* Class to manage simulation grid.
  *
@@ -72,7 +75,7 @@ glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[1], Origin[1], Origin[1] + 
  * Inspiration and reference: https://www.youtube.com/watch?v=iKAVRgIrUOU
  * */
 class FluidGrid {
-  float overRelaxation{1.5};
+  float overRelaxation{1.7};
   float h;
 
   enum FieldType {
@@ -86,8 +89,8 @@ public:
   std::array<std::array<int, N[0] + 2>, N[1] + 2> solid{};
   std::array<std::array<float, N[0] + 2>, N[1] + 2> smoke{};
 
-  FluidGrid(float h) 
-    : h{h} 
+  FluidGrid(float h, float overRelaxation) 
+    : h{h}, overRelaxation{overRelaxation} 
   {
     // set solid values for border fields
     for(int row = 0; row <= N[1]; row++) {
@@ -101,7 +104,7 @@ public:
     for (int row = 1; row < N[1]; row++) {
       for (int col = 1; col < N[0]; col++) {
           solid[row][col] = 0;
-          smoke[row][col] = 0.01;
+          smoke[row][col] = 0.0;
           //smoke[row][col] = ((double)rand()) / RAND_MAX;
           velocityX[row][col] = 0.0;
           velocityY[row][col] = 0.0;
@@ -115,16 +118,15 @@ public:
     for (int row = 1; row < N[1]; row++) {
       for (int col = 1; col < N[0]; col++) {
         if(solid[row][col] == 0.0 && solid[row - 1][col] == 0.0) {
-          velocityY[row][col] += gravity * dt;
+          velocityY[row][col] -= gravity * dt;
         }
       }
     }
   }
 
   void solveIncompressibility(int numIter, float dt) {
-    float total_div = 0;
-
     for (int ni = 0; ni < numIter; ni++) {
+      float total_div = 0;
       for (int row = 1; row < N[1]; row++) {
         for (int col = 1; col < N[0]; col++) {
           if (solid[row][col] == 1)
@@ -135,6 +137,7 @@ public:
           auto su = 1 - solid[row - 1][col];
           auto sd = 1 - solid[row + 1][col];
           auto s = sl + sr + su + sd;
+
           if (s == 0.0)
             continue;
 
@@ -150,8 +153,8 @@ public:
           velocityY[row][col] -= sd * p;
         }
       }
+      std::cout << "divergence = " << total_div << "\n";
     }
-    std::cout << "divergence = " << total_div << "\n";
   }
 
   /* Extrapolates velocity values near the border to border cells. */
@@ -234,7 +237,7 @@ public:
         if (solid[row][col] == 0.0 && solid[row][col - 1] == 0.0 &&
             row < N[1] - 1) {
           float x = col * h ;
-          float y = row * h+ h2;
+          float y = row * h + h2;
           float u = velocityX[row][col];
           float v = avgVelocityY(row, col);
           x = x - dt * u;
@@ -245,8 +248,8 @@ public:
         // vertical component
         if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0 &&
             col < N[0] - 1) {
-          float x = col * h;
-          float y = row * h + h2;
+          float x = col * h + h2;
+          float y = row * h;
           float u = avgVelocityX(row, col);
           float v = velocityY[row][col];
           x = x - dt * u;
@@ -304,18 +307,30 @@ public:
     int mid = N[1] / 2;
     int r = N[1] / 16;
     for (int row = mid - r; row <= mid + r; row++) {
-        velocityX[row][1] = speed;
-        for(int width = 1; width < 3; width++)
-          smoke[row][width] = 1;
+        velocityX[row][0] = speed;
+        velocityY[row][0] = 0.0;
+        smoke[row][1] = 1;
+    }
+  }
+
+  void applyBoundaryConditions() {
+    for (int i = 0; i <= N[0]; i++) {
+      velocityY[0][i] = 0;
+      velocityY[N[1]][i] = 0;
+    }
+    for (int j = 0; j <= N[1]; j++) {
+      velocityX[j][0] = 0;
+      velocityX[j][N[0]] = 0;
     }
   }
 
   void simulate(float dt, float gravity, int numIters) {
-    injectInlet(50);
+    injectInlet(10);
 
     integrate(dt, gravity);
 
     solveIncompressibility(numIters, dt);
+    //applyBoundaryConditions();
 
     extrapolate();
     advectVelocity(dt);
@@ -334,6 +349,7 @@ private:
   unsigned int elementBuffer;
 
   unsigned int smokeTexture;
+  unsigned int solidTexture;
   unsigned int uvBuffer;
 public:
   GridRenderer(const FluidGrid& grid) : grid{grid} {
@@ -352,7 +368,11 @@ public:
 
   }
 
-  unsigned int getTexture() const {
+  unsigned int getSmokeTexture() const {
+    return smokeTexture;
+  }
+
+  unsigned int getSolidTexture() const {
     return smokeTexture;
   }
    
@@ -436,7 +456,7 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   GLFWwindow *window =
-      glfwCreateWindow(800, 800, "Hello OpenGL", nullptr, nullptr);
+      glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Hello OpenGL", nullptr, nullptr);
   if (!window) {
     std::cerr << "Failed to create window\n";
     glfwTerminate();
@@ -450,12 +470,12 @@ int main() {
     return -1;
   }
 
-  glViewport(0, 0, 800, 800);
+  glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
-  FluidGrid simulation(D[0]);
+  FluidGrid simulation(D[0], 1.9);
   GridRenderer renderer(simulation);
   renderer.buildGrid();
 
@@ -489,7 +509,7 @@ int main() {
 
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, renderer.getTexture());
+    glBindTexture(GL_TEXTURE_2D, renderer.getSolidTexture());
 
     renderer.draw();
 
