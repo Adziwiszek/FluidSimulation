@@ -50,7 +50,8 @@ public:
   void advectSmoke(float dt);
 
   void placeFluid(float x, float y, float radius); 
-  void placeSolid(float x, float y, float radius); 
+  void placeFluidRect(float x, float y, float radius); 
+  void placeSolid(float x, float y, float len); 
 
   void simulate(float dt, float gravity, int numIters);
 };

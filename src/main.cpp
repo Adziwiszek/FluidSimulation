@@ -13,18 +13,14 @@
 
 using std::printf;
 
-void ASSERT(bool expr, std::string msg) {
-  if(!expr) {
-    std::cout << "Failed assert: " << msg << std::endl;
-    exit(1);
-  }
-}
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
 bool space_clicked = false;
+bool lmb_pressed = false;
+utils::CursorPos curpos;
 
 void processInput(GLFWwindow *window, bool *simulating) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -39,25 +35,33 @@ void processInput(GLFWwindow *window, bool *simulating) {
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE && space_clicked) {
     space_clicked = false;
   }
+
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS &&
+      !lmb_pressed) {
+    lmb_pressed = true;
+  }
+
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE &&
+      lmb_pressed) {
+    lmb_pressed = false;
+  }
 }
 
-bool lmb_pressed = false;
-utils::CursorPos curpos;
-
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
-{
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-      glfwGetCursorPos(window, &curpos.x, &curpos.y);
-      curpos.toWorldCoordinates();
-      printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
-      lmb_pressed = true;
-    }
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-      // lmb_pressed = false;
-    }
+void mouse_button_callback(GLFWwindow *window, int button, int action,
+                           int mods) {
+  // TODO fix button being released immediately
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    printf("pressed\n");
+    lmb_pressed = true;
+  }
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    printf("released\n");
+    lmb_pressed = false;
+  }
 }
 
-glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[0], Origin[1], Origin[1] + L[1]);
+glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[0], 
+                            Origin[1], Origin[1] + L[1]);
 
 int main() {
   srand(67);
@@ -87,7 +91,7 @@ int main() {
 
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-  glfwSetMouseButtonCallback(window, mouse_button_callback);
+  //glfwSetMouseButtonCallback(window, mouse_button_callback);
 
   Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
@@ -96,7 +100,7 @@ int main() {
   renderer.buildGrid();
 
   bool simulating = true;
-  float gravity = 0.1;
+  float gravity = 0.0;
   int numIters = 10;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
@@ -118,17 +122,25 @@ int main() {
     }
 
     if(lmb_pressed) {
-      lmb_pressed = false;
-      simulation.placeFluid(curpos.x, curpos.y, 30);
+      glfwGetCursorPos(window, &curpos.x, &curpos.y);
+      curpos.toWorldCoordinates();
+      printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
+      //simulation.placeFluidRect(curpos.x, curpos.y, 5);
+      //simulation.placeFluid(curpos.x, curpos.y, 5);
+      simulation.placeSolid(curpos.x, curpos.y, 10);
     }
 
-    renderer.updateTexture();
+    renderer.updateFluidTexture();
+    renderer.updateSolidTexture();
 
     shader.use();
     shader.setMat4("proj", proj);
     shader.setInt("smokeMap", 0);
+    shader.setInt("solidMap", 1);
 
     glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, renderer.getFluidTexture());
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, renderer.getSolidTexture());
 
     renderer.draw();

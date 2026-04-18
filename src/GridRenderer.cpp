@@ -6,9 +6,15 @@ GridRenderer::GridRenderer(const FluidGrid& grid) : grid{grid} {
   glGenBuffers(1, &elementBuffer);
   glGenBuffers(1, &uvBuffer);
 
-  glGenTextures(1, &smokeTexture);
-  glBindTexture(GL_TEXTURE_2D, smokeTexture);
+  glGenTextures(1, &fluidTexture);
+  glBindTexture(GL_TEXTURE_2D, fluidTexture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+  glGenTextures(1, &solidTexture);
+  glBindTexture(GL_TEXTURE_2D, solidTexture);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -16,12 +22,12 @@ GridRenderer::GridRenderer(const FluidGrid& grid) : grid{grid} {
 
 }
 
-unsigned int GridRenderer::getSmokeTexture() const {
-  return smokeTexture;
+unsigned int GridRenderer::getFluidTexture() const {
+  return fluidTexture;
 }
 
 unsigned int GridRenderer::getSolidTexture() const {
-  return smokeTexture;
+  return solidTexture;
 }
  
 void GridRenderer::buildGrid() {
@@ -75,15 +81,26 @@ void GridRenderer::buildGrid() {
                indices.data(), GL_STATIC_DRAW);
 }
 
-void GridRenderer::updateTexture() {
+void GridRenderer::updateFluidTexture() {
   std::vector<float> smokeData(N[0] * N[1]);
   for (unsigned int j = 0; j < N[1]; j++)
       for (unsigned int i = 0; i < N[0]; i++)
           smokeData[j * N[0] + i] = static_cast<float>(grid.smoke[j][i]);
 
-  glBindTexture(GL_TEXTURE_2D, smokeTexture);
+  glBindTexture(GL_TEXTURE_2D, fluidTexture);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
                GL_RED, GL_FLOAT, smokeData.data());
+}
+
+void GridRenderer::updateSolidTexture() {
+  std::vector<float> solidData(N[0] * N[1]);
+  for (unsigned int j = 0; j < N[1]; j++)
+      for (unsigned int i = 0; i < N[0]; i++)
+          solidData[j * N[0] + i] = static_cast<float>(grid.solid[j][i]);
+
+  glBindTexture(GL_TEXTURE_2D, solidTexture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
+               GL_RED, GL_FLOAT, solidData.data());
 }
 
 void GridRenderer::draw() {

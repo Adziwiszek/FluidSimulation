@@ -15,6 +15,6 @@ namespace utils {
     double worldY = 
       static_cast<double>(yRatio * (float)N[1]);
     x = worldX; 
-    y = worldY;
+    y = static_cast<float>(N[1]) - worldY;
   }
 }

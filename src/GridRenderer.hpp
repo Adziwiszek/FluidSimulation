@@ -18,16 +18,17 @@ private:
   unsigned int vertexArray;
   unsigned int elementBuffer;
 
-  unsigned int smokeTexture;
+  unsigned int fluidTexture;
   unsigned int solidTexture;
   unsigned int uvBuffer;
 public:
   GridRenderer(const FluidGrid& grid);
 
-  unsigned int getSmokeTexture() const;
+  unsigned int getFluidTexture() const;
   unsigned int getSolidTexture() const;
    
   void buildGrid(); 
-  void updateTexture(); 
+  void updateFluidTexture(); 
+  void updateSolidTexture(); 
   void draw(); 
 };
