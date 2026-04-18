@@ -8,15 +8,6 @@ using std::printf;
 
 FluidGrid::FluidGrid(float h, float overRelaxation)
     : h{h}, overRelaxation{overRelaxation} {
-  // set solid values for border fields
-  for (int row = 0; row <= N[1]; row++) {
-    solid[row][0] = 1;
-    solid[row][N[0]] = 0;
-  }
-  for (int col = 0; col <= N[0]; col++) {
-    solid[0][col] = 1;
-    solid[N[1]][col] = 1;
-  }
   for (int row = 1; row < N[1]; row++) {
     for (int col = 1; col < N[0]; col++) {
       solid[row][col] = 0;
@@ -24,6 +15,15 @@ FluidGrid::FluidGrid(float h, float overRelaxation)
       velocityX[row][col] = 0.0;
       velocityY[row][col] = 0.0;
     }
+  }
+  // set solid values for border fields
+  for (int row = 0; row <= N[1]; row++) {
+    solid[row][0] = 1;
+    solid[row][N[0]] = 1;
+  }
+  for (int col = 0; col <= N[0]; col++) {
+    solid[0][col] = 1;
+    solid[N[1]][col] = 1;
   }
 }
 
@@ -244,7 +244,7 @@ float FluidGrid::avgVelocityX(int row, int col) {
 
 void FluidGrid::injectInlet(float speed) {
   int mid = N[1] / 2;
-  int r = N[1] / 16;
+  int r = N[1] / 32;
   for (int row = mid - r; row <= mid + r; row++) {
     velocityX[row][0] = speed;
     velocityX[row][1] = speed;

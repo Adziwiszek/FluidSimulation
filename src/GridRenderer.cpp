@@ -34,30 +34,31 @@ void GridRenderer::buildGrid() {
   indices.clear();
   vertices.clear();
 
-  for(unsigned int i = 0; i <= N[0]; i++) {
-    for(unsigned int j = 0; j <= N[1]; j++) {
+  for(unsigned int j = 0; j <= N[1]; j++) {
+    for(unsigned int i = 0; i <= N[0]; i++) {
       float x = Origin[0] + i * D[0];
       float y = Origin[1] + j * D[1];
       vertices.push_back({x, y, 0});
     }
   }
-  for(unsigned int i = 0; i < N[0]; i++) {
-    for(unsigned int j = 0; j < N[1]; j++) {
-      indices.push_back(i + j * (N[0]+1));
-      indices.push_back(i + 1 + j * (N[0]+1));
-      indices.push_back(i + 1 + (j + 1) * (N[0]+1));
+  for(unsigned int j = 0; j < N[1]; j++) {
+    for(unsigned int i = 0; i < N[0]; i++) {
+      unsigned int base = j * (N[0] + 1) + i;
+      indices.push_back(base);
+      indices.push_back(base + 1);
+      indices.push_back(base + (N[0] + 1) + 1);
 
-      indices.push_back(i + j * (N[0]+1));
-      indices.push_back(i + (j + 1) * (N[0]+1));
-      indices.push_back(i + 1 + (j + 1) * (N[0]+1));
+      indices.push_back(base);
+      indices.push_back(base + (N[0] + 1));
+      indices.push_back(base + (N[0] + 1) + 1);
     }
   }
 
   std::vector<glm::vec2> uvs;
-  for (unsigned int i = 0; i <= N[0]; i++) {
-    for (unsigned int j = 0; j <= N[1]; j++) {
-      float u = static_cast<float>(i) / N[0];
-      float v = static_cast<float>(j) / N[1];
+  for (unsigned int j = 0; j <= N[1]; j++) {
+    for (unsigned int i = 0; i <= N[0]; i++) {
+      float u = (static_cast<float>(i) + 0.5f) / N[0];
+      float v = (static_cast<float>(j) + 0.5f) / N[1];
       uvs.push_back({u, v});
     }
   }
@@ -81,6 +82,7 @@ void GridRenderer::buildGrid() {
                indices.data(), GL_STATIC_DRAW);
 }
 
+/*
 void GridRenderer::updateFluidTexture() {
   std::vector<float> smokeData(N[0] * N[1]);
   for (unsigned int j = 0; j < N[1]; j++)
@@ -91,16 +93,21 @@ void GridRenderer::updateFluidTexture() {
   glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
                GL_RED, GL_FLOAT, smokeData.data());
 }
+*/
+void GridRenderer::updateFluidTexture() {
+    glBindTexture(GL_TEXTURE_2D, fluidTexture);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, N[0] + 2);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
+                 GL_RED, GL_FLOAT, &grid.smoke[1][1]);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+}
 
 void GridRenderer::updateSolidTexture() {
-  std::vector<float> solidData(N[0] * N[1]);
-  for (unsigned int j = 0; j < N[1]; j++)
-      for (unsigned int i = 0; i < N[0]; i++)
-          solidData[j * N[0] + i] = static_cast<float>(grid.solid[j][i]);
-
   glBindTexture(GL_TEXTURE_2D, solidTexture);
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, N[0] + 2);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
-               GL_RED, GL_FLOAT, solidData.data());
+               GL_RED, GL_FLOAT, &grid.solid[1][1]);
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
 void GridRenderer::draw() {

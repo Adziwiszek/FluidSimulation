@@ -100,7 +100,7 @@ int main() {
   renderer.buildGrid();
 
   bool simulating = true;
-  float gravity = 0.0;
+  float gravity = 0;
   int numIters = 10;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
@@ -126,8 +126,8 @@ int main() {
       curpos.toWorldCoordinates();
       printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
       //simulation.placeFluidRect(curpos.x, curpos.y, 5);
-      //simulation.placeFluid(curpos.x, curpos.y, 5);
-      simulation.placeSolid(curpos.x, curpos.y, 10);
+      simulation.placeFluid(curpos.x, curpos.y, 5);
+      //simulation.placeSolid(curpos.x, curpos.y, 10);
     }
 
     renderer.updateFluidTexture();
