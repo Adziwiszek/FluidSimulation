@@ -1,4 +1,8 @@
 #include "GridRenderer.hpp"
+#include "Common.hpp"
+
+#include <print>
+using std::printf;
 
 GridRenderer::GridRenderer(const FluidGrid& grid) : grid{grid} {
   glGenVertexArrays(1, &vertexArray);
@@ -34,31 +38,31 @@ void GridRenderer::buildGrid() {
   indices.clear();
   vertices.clear();
 
-  for(unsigned int j = 0; j <= N[1]; j++) {
-    for(unsigned int i = 0; i <= N[0]; i++) {
+  for(unsigned int j = 0; j <= N_REAL[1]; j++) {
+    for(unsigned int i = 0; i <= N_REAL[0]; i++) {
       float x = Origin[0] + i * D[0];
       float y = Origin[1] + j * D[1];
       vertices.push_back({x, y, 0});
     }
   }
-  for(unsigned int j = 0; j < N[1]; j++) {
-    for(unsigned int i = 0; i < N[0]; i++) {
-      unsigned int base = j * (N[0] + 1) + i;
+  for(unsigned int j = 0; j < N_REAL[1]; j++) {
+    for(unsigned int i = 0; i < N_REAL[0]; i++) {
+      unsigned int base = j * (N_REAL[0] + 1) + i;
       indices.push_back(base);
       indices.push_back(base + 1);
-      indices.push_back(base + (N[0] + 1) + 1);
+      indices.push_back(base + (N_REAL[0] + 1) + 1);
 
       indices.push_back(base);
-      indices.push_back(base + (N[0] + 1));
-      indices.push_back(base + (N[0] + 1) + 1);
+      indices.push_back(base + (N_REAL[0] + 1));
+      indices.push_back(base + (N_REAL[0] + 1) + 1);
     }
   }
 
   std::vector<glm::vec2> uvs;
-  for (unsigned int j = 0; j <= N[1]; j++) {
-    for (unsigned int i = 0; i <= N[0]; i++) {
-      float u = (static_cast<float>(i) + 0.5f) / N[0];
-      float v = (static_cast<float>(j) + 0.5f) / N[1];
+  for (unsigned int j = 0; j <= N_REAL[1]; j++) {
+    for (unsigned int i = 0; i <= N_REAL[0]; i++) {
+      float u = (static_cast<float>(i)) / N_REAL[0];
+      float v = (static_cast<float>(j)) / N_REAL[1];
       uvs.push_back({u, v});
     }
   }
@@ -82,32 +86,26 @@ void GridRenderer::buildGrid() {
                indices.data(), GL_STATIC_DRAW);
 }
 
-/*
-void GridRenderer::updateFluidTexture() {
-  std::vector<float> smokeData(N[0] * N[1]);
-  for (unsigned int j = 0; j < N[1]; j++)
-      for (unsigned int i = 0; i < N[0]; i++)
-          smokeData[j * N[0] + i] = static_cast<float>(grid.smoke[j][i]);
-
-  glBindTexture(GL_TEXTURE_2D, fluidTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
-               GL_RED, GL_FLOAT, smokeData.data());
-}
-*/
 void GridRenderer::updateFluidTexture() {
     glBindTexture(GL_TEXTURE_2D, fluidTexture);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, N[0] + 2);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, N_REAL[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N_REAL[0], N_REAL[1], 0,
                  GL_RED, GL_FLOAT, &grid.smoke[1][1]);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
 void GridRenderer::updateSolidTexture() {
-  glBindTexture(GL_TEXTURE_2D, solidTexture);
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, N[0] + 2);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N[0], N[1], 0,
-               GL_RED, GL_FLOAT, &grid.solid[1][1]);
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    std::vector<float> solidData(N_REAL[0] * N_REAL[1]);
+    for (unsigned int j = 0; j < N_REAL[1]; j++) {
+      for (unsigned int i = 0; i < N_REAL[0]; i++) {
+        solidData[j * N_REAL[0] + i] =
+            static_cast<float>(grid.solid[j][i]);
+      }
+    }
+
+    glBindTexture(GL_TEXTURE_2D, solidTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, N_REAL[0], N_REAL[1], 0,
+                 GL_RED, GL_FLOAT, solidData.data());
 }
 
 void GridRenderer::draw() {

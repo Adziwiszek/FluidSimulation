@@ -11,10 +11,10 @@ namespace utils {
     float xRatio = x / static_cast<float>(WINDOW_WIDTH);
     float yRatio = y / static_cast<float>(WINDOW_HEIGHT);
     double worldX = 
-      static_cast<double>(xRatio * (float)N[0]);
+      static_cast<double>(xRatio * (float)N_REAL[0]);
     double worldY = 
-      static_cast<double>(yRatio * (float)N[1]);
+      static_cast<double>(yRatio * (float)N_REAL[1]);
     x = worldX; 
-    y = static_cast<float>(N[1]) - worldY;
+    y = static_cast<float>(N_REAL[1]) - worldY;
   }
 }

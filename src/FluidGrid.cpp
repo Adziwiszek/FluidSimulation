@@ -8,8 +8,8 @@ using std::printf;
 
 FluidGrid::FluidGrid(float h, float overRelaxation)
     : h{h}, overRelaxation{overRelaxation} {
-  for (int row = 1; row < N[1]; row++) {
-    for (int col = 1; col < N[0]; col++) {
+  for (int row = 1; row < N_REAL[1] - 1; row++) {
+    for (int col = 1; col < N_REAL[0] - 1; col++) {
       solid[row][col] = 0;
       smoke[row][col] = 0.0;
       velocityX[row][col] = 0.0;
@@ -17,20 +17,21 @@ FluidGrid::FluidGrid(float h, float overRelaxation)
     }
   }
   // set solid values for border fields
-  for (int row = 0; row <= N[1]; row++) {
+  for (int row = 0; row < N_REAL[1]; row++) {
     solid[row][0] = 1;
-    solid[row][N[0]] = 1;
+    solid[row][N_REAL[0] - 1] = 1;
   }
-  for (int col = 0; col <= N[0]; col++) {
+  for (int col = 0; col < N_REAL[0]; col++) {
     solid[0][col] = 1;
-    solid[N[1]][col] = 1;
+    solid[N_REAL[1] - 1][col] = 1;
   }
 }
 
 void FluidGrid::integrate(float dt, float gravity) {
-  for (int row = 1; row < N[1]; row++) {
-    for (int col = 1; col < N[0]; col++) {
-      if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0) {
+  for (int row = 1; row < N_REAL[1] - 1; row++) {
+    for (int col = 1; col < N_REAL[0] - 1; col++) {
+      if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0
+          && smoke[row][col] > 0.0) {
         velocityY[row][col] -= gravity * dt;
       }
     }
@@ -40,8 +41,8 @@ void FluidGrid::integrate(float dt, float gravity) {
 void FluidGrid::solveIncompressibility(int numIter, float dt) {
   for (int ni = 0; ni < numIter; ni++) {
     float total_div = 0;
-    for (int row = 1; row < N[1]; row++) {
-      for (int col = 1; col < N[0]; col++) {
+    for (int row = 1; row < N_REAL[1] - 1; row++) {
+      for (int col = 1; col < N_REAL[0] - 1; col++) {
         if (solid[row][col] == 1)
           continue;
 
@@ -56,7 +57,6 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
 
         float d = velocityX[row][col] - velocityX[row][col - 1] +
                   -velocityY[row - 1][col] + velocityY[row][col];
-        // printf("d = %f\n", d);
         total_div += d;
         float p = overRelaxation * (-d / s);
 
@@ -66,19 +66,19 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
         velocityY[row][col] += sd * p;
       }
     }
-    // printf("Divergence = %f\n", total_div);
+    printf("Divergence = %f\n", total_div);
   }
 }
 
 /* Extrapolates velocity values near the border to border cells. */
 void FluidGrid::extrapolate() {
-  for (int row = 0; row <= N[1]; row++) {
+  for (int row = 0; row < N_REAL[1]; row++) {
     velocityX[row][0] = velocityX[row][1];
-    velocityX[row][N[0]] = velocityX[row][N[0] - 1];
+    velocityX[row][N_REAL[0] - 1] = velocityX[row][N_REAL[0] - 2];
   }
-  for (int col = 0; col <= N[0]; col++) {
+  for (int col = 0; col < N_REAL[0]; col++) {
     velocityY[0][col] = velocityY[1][col];
-    velocityY[N[1]][col] = velocityY[N[1] - 1][col];
+    velocityY[N_REAL[1] - 1][col] = velocityY[N_REAL[1] - 2][col];
   }
 }
 
@@ -86,8 +86,8 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
   float h1 = 1.0 / h;
   float h2 = 0.5 * h;
 
-  x = std::max(std::min(x, static_cast<float>(N[0]) * h), h);
-  y = std::max(std::min(y, static_cast<float>(N[1]) * h), h);
+  x = std::max(std::min(x, static_cast<float>(N_REAL[0] - 1) * h), h);
+  y = std::max(std::min(y, static_cast<float>(N_REAL[1] - 1) * h), h);
 
   float dx = 0.0;
   float dy = 0.0;
@@ -104,16 +104,16 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
     dy = h2;
     break;
   }
-
+  // maybe todo
   int x0 = std::min(static_cast<int>(std::floor((x - dx) * h1)),
-                    static_cast<int>(N[0]) - 1);
+                    static_cast<int>(N_REAL[0]) - 1);
   float tx = ((x - dx) - x0 * h) * h1;
-  int x1 = std::min(x0 + 1, static_cast<int>(N[0]) - 1);
+  int x1 = std::min(x0 + 1, static_cast<int>(N_REAL[0]) - 1);
 
   int y0 = std::min(static_cast<int>(std::floor((y - dy) * h1)),
-                    static_cast<int>(N[1]) - 1);
+                    static_cast<int>(N_REAL[1]) - 1);
   float ty = ((y - dy) - y0 * h) * h1;
-  int y1 = std::min(y0 + 1, static_cast<int>(N[1]) - 1);
+  int y1 = std::min(y0 + 1, static_cast<int>(N_REAL[1]) - 1);
 
   float sx = 1.0 - tx;
   float sy = 1.0 - ty;
@@ -133,16 +133,16 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
 }
 
 void FluidGrid::advectVelocity(float dt) {
-  std::array<std::array<float, N[0] + 2>, N[1] + 2> newVelocityX{};
-  std::array<std::array<float, N[0] + 2>, N[1] + 2> newVelocityY{};
+  auto newVelocityX = velocityX;
+  auto newVelocityY = velocityY;
 
   float h2 = 0.5 * h;
 
-  for (int row = 1; row < N[1]; row++) {
-    for (int col = 1; col < N[0]; col++) {
+  for (int row = 1; row < N_REAL[1] - 1; row++) {
+    for (int col = 1; col < N_REAL[0] - 1; col++) {
       // horizontal component
       if (solid[row][col] == 0.0 && solid[row][col - 1] == 0.0 &&
-          row < N[1] - 1) {
+          row < N_REAL[1] - 1) {
         float x = col * h;
         float y = row * h + h2;
         float u = velocityX[row][col];
@@ -154,7 +154,7 @@ void FluidGrid::advectVelocity(float dt) {
       }
       // vertical component
       if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0 &&
-          col < N[0] - 1) {
+          col < N_REAL[0] - 1) {
         float x = col * h + h2;
         float y = row * h;
         float u = avgVelocityX(row, col);
@@ -172,11 +172,13 @@ void FluidGrid::advectVelocity(float dt) {
 }
 
 void FluidGrid::advectSmoke(float dt) {
-  std::array<std::array<float, N[0] + 2>, N[1] + 2> newSmoke{};
+  auto newSmoke = smoke;
   float h2 = 0.5 * h;
 
-  for (int row = 1; row < N[1]; row++) {
-    for (int col = 1; col < N[0]; col++) {
+  float total_smoke = 0.0;
+  for (int row = 1; row < N_REAL[1] - 1; row++) {
+    for (int col = 1; col < N_REAL[0] - 1; col++) {
+      total_smoke += smoke[row][col];
       if (solid[row][col] == 0) {
         float u = avgVelocityX(row, col);
         float v = avgVelocityY(row, col);
@@ -186,17 +188,20 @@ void FluidGrid::advectSmoke(float dt) {
       }
     }
   }
+  //printf("there is %f smoke\n", total_smoke);
   smoke = newSmoke;
 }
 
-void FluidGrid::placeSolid(float x, float y, float len) {
-  int topLeftX = utils::max<int>(x, 1.0f);
-  int topLeftY = utils::max<int>(y, 1.0f);
-  int rightBound = utils::min<int>(topLeftX + len, N[0] - 1);
-  int downBound = utils::min<int>(topLeftY + len, N[1] - 1);
+void FluidGrid::placeSolid(float x, float y, float radius) {
+  int topLeftX = utils::max<int>(x - radius, 1.0f);
+  int topLeftY = utils::max<int>(y - radius, 1.0f);
+  int rightBound = utils::min<int>(x + radius, N_REAL[0] - 1);
+  int downBound = utils::min<int>(y + radius, N_REAL[1] - 1);
 
   for (int row = topLeftY; row <= downBound; row++) {
     for (int col = topLeftX; col <= rightBound; col++) {
+      if (utils::euclid_dist(x, y, col, row) >= radius)
+        continue;
       solid[row][col] = 1;
     }
   }
@@ -205,8 +210,8 @@ void FluidGrid::placeSolid(float x, float y, float len) {
 void FluidGrid::placeFluidRect(float x, float y, float len) {
   int topLeftX = utils::max<int>(x, 1.0f);
   int topLeftY = utils::max<int>(y, 1.0f);
-  int rightBound = utils::min<int>(topLeftX + len, N[0] - 1);
-  int downBound = utils::min<int>(topLeftY + len, N[1] - 1);
+  int rightBound = utils::min<int>(topLeftX + len, N_REAL[0] - 1);
+  int downBound = utils::min<int>(topLeftY + len, N_REAL[1] - 1);
 
   for (int row = topLeftY; row <= downBound; row++) {
     for (int col = topLeftX; col <= rightBound; col++) {
@@ -218,12 +223,13 @@ void FluidGrid::placeFluidRect(float x, float y, float len) {
 void FluidGrid::placeFluid(float x, float y, float radius) {
   int topLeftX = utils::max<int>(x - radius, 1.0f);
   int topLeftY = utils::max<int>(y - radius, 1.0f);
-  int rightBound = utils::min<int>(x + radius, N[0] - 1);
-  int downBound = utils::min<int>(y + radius, N[1] - 1);
+  int rightBound = utils::min<int>(x + radius, N_REAL[0] - 1);
+  int downBound = utils::min<int>(y + radius, N_REAL[1] - 1);
 
   for (int row = topLeftY; row <= downBound; row++) {
     for (int col = topLeftX; col <= rightBound; col++) {
-      if (utils::euclid_dist(x, y, col, row) >= radius)
+      if (utils::euclid_dist(x, y, col, row) >= radius ||
+          solid[row][col] > 0)
         continue;
       smoke[row][col] = 1;
     }
@@ -243,23 +249,25 @@ float FluidGrid::avgVelocityX(int row, int col) {
 }
 
 void FluidGrid::injectInlet(float speed) {
-  int mid = N[1] / 2;
-  int r = N[1] / 32;
+  int mid = N_REAL[1] / 2;
+  int r = N_REAL[1] / 32;
   for (int row = mid - r; row <= mid + r; row++) {
     velocityX[row][0] = speed;
     velocityX[row][1] = speed;
+    smoke[row][0] = 1;
     smoke[row][1] = 1;
   }
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
-  injectInlet(10);
+  //injectInlet(10);
 
   integrate(dt, gravity);
 
   solveIncompressibility(numIters, dt);
 
   extrapolate();
+
   advectVelocity(dt);
   advectSmoke(dt);
 }

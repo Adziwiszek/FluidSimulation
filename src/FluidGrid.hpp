@@ -11,7 +11,7 @@
 /* Class to manage simulation grid.
  *
  * velocityX and velocityY store velocities at borders of the grid squares
- * (that's why there is N[0] + 1).
+ * (that's why there is N_REAL[0]).
  *
  * solid tells us if given square is a solid. If so we don't take use it in the
  * simulation. 
@@ -28,10 +28,10 @@ class FluidGrid {
     S_FIELD,
   };
 public:
-  std::array<std::array<float, N[0] + 2>, N[1] + 2> velocityX{};
-  std::array<std::array<float, N[0] + 2>, N[1] + 2> velocityY{};
-  std::array<std::array<int, N[0] + 2>, N[1] + 2> solid{};
-  std::array<std::array<float, N[0] + 2>, N[1] + 2> smoke{};
+  std::array<std::array<float, N_REAL[0]>, N_REAL[1]> velocityX{};
+  std::array<std::array<float, N_REAL[0]>, N_REAL[1]> velocityY{};
+  std::array<std::array<int, N_REAL[0]>, N_REAL[1]> solid{};
+  std::array<std::array<float, N_REAL[0]>, N_REAL[1]> smoke{};
 
   FluidGrid(float h, float overRelaxation) ;
 
@@ -52,6 +52,8 @@ public:
   void placeFluid(float x, float y, float radius); 
   void placeFluidRect(float x, float y, float radius); 
   void placeSolid(float x, float y, float len); 
+
+  void zeroSolidVelocities();
 
   void simulate(float dt, float gravity, int numIters);
 };

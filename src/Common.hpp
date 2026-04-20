@@ -16,10 +16,11 @@ constexpr size_t WINDOW_HEIGHT = 800;
 constexpr std::array<float, NDIM> Origin = {0.0f, 0.0f};
 /* Number of cells in each coordinate */
 constexpr std::array<unsigned int, NDIM> N = {200, 150};
+constexpr std::array<unsigned int, NDIM> N_REAL = {N[0] + 2, N[1] + 2};
 /* Size of the grid */
 constexpr std::array<unsigned int, NDIM> L = {
-  WINDOW_WIDTH / N[0], 
-  WINDOW_HEIGHT / N[1]
+  WINDOW_WIDTH / N_REAL[0], 
+  WINDOW_HEIGHT / N_REAL[1]
 };
 
 
@@ -27,7 +28,7 @@ constexpr std::array<unsigned int, NDIM> L = {
 constexpr auto D = [] {
   std::array<float, NDIM> d{};
   for (int i = 0; i < NDIM; i++)
-    d[i] = static_cast<float>(L[i]) / N[i];
+    d[i] = static_cast<float>(L[i]) / N_REAL[i];
   return d;
 }();
 
