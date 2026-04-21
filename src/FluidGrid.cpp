@@ -8,8 +8,8 @@ using std::printf;
 
 FluidGrid::FluidGrid(float h, float overRelaxation)
     : h{h}, overRelaxation{overRelaxation} {
-  for (int row = 1; row < N_REAL[1] - 1; row++) {
-    for (int col = 1; col < N_REAL[0] - 1; col++) {
+  for (int row = 0; row < N_REAL[1]; row++) {
+    for (int col = 0; col < N_REAL[0]; col++) {
       solid[row][col] = 0;
       smoke[row][col] = 0.0;
       velocityX[row][col] = 0.0;
@@ -19,7 +19,8 @@ FluidGrid::FluidGrid(float h, float overRelaxation)
   // set solid values for border fields
   for (int row = 0; row < N_REAL[1]; row++) {
     solid[row][0] = 1;
-    solid[row][N_REAL[0] - 1] = 1;
+    // right side is open
+    // solid[row][N_REAL[0] - 1] = 1;
   }
   for (int col = 0; col < N_REAL[0]; col++) {
     solid[0][col] = 1;
@@ -32,7 +33,7 @@ void FluidGrid::integrate(float dt, float gravity) {
     for (int col = 1; col < N_REAL[0] - 1; col++) {
       if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0
           && smoke[row][col] > 0.0) {
-        velocityY[row][col] -= gravity * dt;
+        velocityY[row][col] += gravity * dt;
       }
     }
   }
@@ -252,15 +253,14 @@ void FluidGrid::injectInlet(float speed) {
   int mid = N_REAL[1] / 2;
   int r = N_REAL[1] / 32;
   for (int row = mid - r; row <= mid + r; row++) {
-    velocityX[row][0] = speed;
     velocityX[row][1] = speed;
-    smoke[row][0] = 1;
     smoke[row][1] = 1;
+    smoke[row][2] = 1;
   }
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
-  //injectInlet(10);
+  injectInlet(10);
 
   integrate(dt, gravity);
 

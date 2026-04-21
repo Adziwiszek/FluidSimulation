@@ -47,19 +47,6 @@ void processInput(GLFWwindow *window, bool *simulating) {
   }
 }
 
-void mouse_button_callback(GLFWwindow *window, int button, int action,
-                           int mods) {
-  // TODO fix button being released immediately
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-    printf("pressed\n");
-    lmb_pressed = true;
-  }
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-    printf("released\n");
-    lmb_pressed = false;
-  }
-}
-
 glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[0], 
                             Origin[1], Origin[1] + L[1]);
 
@@ -91,7 +78,6 @@ int main() {
 
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-  //glfwSetMouseButtonCallback(window, mouse_button_callback);
 
   Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
@@ -100,8 +86,8 @@ int main() {
   renderer.buildGrid();
 
   bool simulating = true;
-  float gravity = 9.81;
-  int numIters = 10;
+  float gravity = 0.0;
+  int numIters = 8;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
   while (!glfwWindowShouldClose(window)) {

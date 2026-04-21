@@ -9,7 +9,7 @@
 
 constexpr int NDIM = 2;
 
-constexpr size_t WINDOW_WIDTH = 1000;
+constexpr size_t WINDOW_WIDTH = 1200;
 constexpr size_t WINDOW_HEIGHT = 800;
 
 /* Origin */
