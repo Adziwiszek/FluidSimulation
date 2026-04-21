@@ -32,7 +32,7 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   // left + right
   for (int j = 0; j < this->numY; j++) {
     s[j * n + 0] = 0.0f;
-    s[j * n + (this->numX - 1)] = 0.0f;
+    //s[j * n + (this->numX - 1)] = 0.0f;
   }
   // top + bottom
   for (int i = 0; i < this->numX; i++) {
@@ -61,17 +61,17 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
     float total_div = 0;
     for (int i = 1; i < numX - 1; i++) {
       for (int j = 1; j < numY - 1; j++) {
-        float currentS = s[j * n + i];
-        if (currentS == 0)
+        float s = this->s[j * n + i];
+        if (s == 0)
           continue;
 
-        float sx0 = s[j * n + i - 1];
-        float sx1 = s[j * n + i + 1];
-        float sy0 = s[(j - 1) * n + i];
-        float sy1 = s[(j + 1) * n + i];
-        currentS = sx0 + sx1 + sy0 + sy1;
+        float sx0 = this->s[j * n + i - 1];
+        float sx1 = this->s[j * n + i + 1];
+        float sy0 = this->s[(j - 1) * n + i];
+        float sy1 = this->s[(j + 1) * n + i];
+        s = sx0 + sx1 + sy0 + sy1;
 
-        if (currentS == 0.0)
+        if (s == 0.0)
           continue;
 
         float div =
@@ -79,7 +79,7 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
             v[(j + 1) * n + i] - v[j * n + i];
         total_div += div;
 
-        float p = -div / currentS;
+        float p = -div / s;
         p *= overRelaxation;
 
         u[j * n + i] -= sx0 * p;
@@ -97,13 +97,13 @@ void FluidGrid::extrapolate() {
   int n = numX;
   // left + right
   for (int j = 0; j < this->numY; j++) {
-    s[j * n + 0] = s[j * n + 1];
-    s[j * n + (this->numX - 1)] = s[j * n + (this->numX - 2)];
+    v[j * n + 0] = v[j * n + 1];
+    v[j * n + (this->numX - 1)] = v[j * n + (this->numX - 2)];
   }
   // top + bottom
   for (int i = 0; i < this->numX; i++) {
-    s[0 * n + i] = s[1 * n + i];
-    s[(this->numY - 1) * n + i] = s[(this->numY - 2) * n + i];
+    u[0 * n + i] = u[1 * n + i];
+    u[(this->numY - 1) * n + i] = u[(this->numY - 2) * n + i];
   }
 }
 
@@ -112,8 +112,6 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
   float h1 = 1.0 / h;
   float h2 = 0.5 * h;
 
-  // x = std::max(std::min(x, static_cast<float>(N_REAL[0] - 1) * h), h);
-  // y = std::max(std::min(y, static_cast<float>(N_REAL[1] - 1) * h), h);
   x = std::clamp(x, h, (float)numX * h);
   y = std::clamp(y, h, (float)numY * h);
 
@@ -130,7 +128,6 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
     f = v;
     dx = h2;
     break;
-    // maybe todo
   case S_FIELD:
     f = m;
     dx = h2;
@@ -157,16 +154,18 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
 
 float FluidGrid::avgU(int i, int j) {
   int n = numX;
-  return (u[(j - 1) * n + i] + u[j * n + i] + u[(j - 1) * n + i + 1] +
-          u[(j) * n + i + 1]) *
-         0.25;
+  return (
+      u[(j - 1) * n + i] + u[j * n + i] + 
+      u[(j - 1) * n + i + 1] + u[j * n + i + 1]
+      ) * 0.25;
 }
 
 float FluidGrid::avgV(int i, int j) {
   int n = numX;
-  return (v[(j) * n + i - 1] + v[j * n + i] + v[(j + 1) * n + i - 1] +
-          v[(j + 1) * n + i]) *
-         0.25;
+  return (
+        v[j * n + i - 1] + v[j * n + i] + 
+        v[(j + 1) * n + i - 1] + v[(j + 1) * n + i]
+      ) * 0.25;
 }
 
 void FluidGrid::advectVelocity(float dt) {
@@ -179,7 +178,7 @@ void FluidGrid::advectVelocity(float dt) {
   for (int i = 1; i < numX; i++) {
     for (int j = 1; j < numY; j++) {
       // horizontal component
-      if (s[j * n + i] != 0.0 && s[(j) * n + i - 1] != 0.0 && j < numY - 1) {
+      if (s[j * n + i] != 0.0 && s[j * n + i - 1] != 0.0 && j < numY - 1) {
         float x = i * h;
         float y = j * h + h2;
         float u = this->u[j * n + i];
@@ -216,7 +215,7 @@ void FluidGrid::advectSmoke(float dt) {
   for (int i = 1; i < numX - 1; i++) {
     for (int j = 1; j < numY - 1; j++) {
       if (s[j * n + i] != 0.0) {
-        float u = (this->u[j * n + i] + this->u[(j) * n + i + 1]) * 0.5;
+        float u = (this->u[j * n + i] + this->u[j * n + i + 1]) * 0.5;
         float v = (this->v[j * n + i] + this->v[(j + 1) * n + i]) * 0.5;
         float x = i * h + h2 - dt * u;
         float y = j * h + h2 - dt * v;
@@ -279,12 +278,15 @@ void FluidGrid::injectInlet(float speed) {
   int mid = numY / 2;
   for (int j = mid - r; j < mid + r; j++) {
     u[j * n + 1] = speed;
+  }
+  r = 6;
+  for (int j = mid - r; j < mid + r; j++) {
     m[j * n + 1] = 1.0f;
   }
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
-  injectInlet(10);
+  injectInlet(2);
 
   integrate(dt, gravity);
 

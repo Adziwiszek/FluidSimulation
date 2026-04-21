@@ -90,7 +90,7 @@ int main() {
 
   bool simulating = true;
   float gravity = 0.0;
-  int numIters = 30;
+  int numIters = 75;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
   while (!glfwWindowShouldClose(window)) {
