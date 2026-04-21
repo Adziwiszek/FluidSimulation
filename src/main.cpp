@@ -81,7 +81,7 @@ int main() {
 
   Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
-  FluidGrid simulation(D[0], 1.9);
+  FluidGrid simulation(D[0], 1.9, N[1], N[0]);
   GridRenderer renderer(simulation);
   renderer.buildGrid();
 
@@ -107,7 +107,7 @@ int main() {
       glfwGetCursorPos(window, &curpos.x, &curpos.y);
       curpos.toWorldCoordinates();
       printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
-      simulation.placeFluid(curpos.x, curpos.y, 10);
+      //simulation.placeFluid(curpos.x, curpos.y, 10);
       //simulation.placeSolid(curpos.x, curpos.y, 10);
     }
 

@@ -10,9 +10,10 @@ void main()
 {
   float smoke = texture(smokeMap, UV).r;
   float solid = texture(solidMap, UV).r;
-  if (solid > 0.0) {
-    fragColor = vec4(0.0f, 0.2f, 0.9f, 1.0f);
+
+  if (solid < 0.5) {
+    fragColor = vec4(0.2, 0.2, 0.2, 1.0);
   } else {
-    fragColor = vec4(smoke, smoke, smoke, 1.0f);
+    fragColor = vec4(smoke, smoke, smoke, 1.0);
   }
 }
