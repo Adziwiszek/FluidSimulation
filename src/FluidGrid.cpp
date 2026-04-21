@@ -32,13 +32,15 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   // left + right
   for (int j = 0; j < this->numY; j++) {
     s[j * n + 0] = 0.0f;
-    //s[j * n + (this->numX - 1)] = 0.0f;
+    // s[j * n + (this->numX - 1)] = 0.0f;
   }
   // top + bottom
   for (int i = 0; i < this->numX; i++) {
     s[0 * n + i] = 0.0f;
     s[(this->numY - 1) * n + i] = 0.0f;
   }
+
+  placeSolid(75, 75, 15.0);
 }
 
 int FluidGrid::getNumX() const { return numX; }
@@ -48,7 +50,7 @@ void FluidGrid::integrate(float dt, float gravity) {
   int n = numX;
   for (int i = 1; i < numX - 1; i++) {
     for (int j = 1; j < numY - 1; j++) {
-      if (s[j * n + i] != 0.0 && s[j * n + i - 1] != 0.0)
+      if (s[j * n + i] != 0.0 && s[(j - 1) * n + i] != 0.0)
         v[j * n + i] += gravity * dt;
     }
   }
@@ -75,8 +77,7 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
           continue;
 
         float div =
-            u[j * n + i + 1] - u[j * n + i] + 
-            v[(j + 1) * n + i] - v[j * n + i];
+            u[j * n + i + 1] - u[j * n + i] + v[(j + 1) * n + i] - v[j * n + i];
         total_div += div;
 
         float p = -div / s;
@@ -154,18 +155,16 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
 
 float FluidGrid::avgU(int i, int j) {
   int n = numX;
-  return (
-      u[(j - 1) * n + i] + u[j * n + i] + 
-      u[(j - 1) * n + i + 1] + u[j * n + i + 1]
-      ) * 0.25;
+  return (u[(j - 1) * n + i] + u[j * n + i] + u[(j - 1) * n + i + 1] +
+          u[j * n + i + 1]) *
+         0.25;
 }
 
 float FluidGrid::avgV(int i, int j) {
   int n = numX;
-  return (
-        v[j * n + i - 1] + v[j * n + i] + 
-        v[(j + 1) * n + i - 1] + v[(j + 1) * n + i]
-      ) * 0.25;
+  return (v[j * n + i - 1] + v[j * n + i] + v[(j + 1) * n + i - 1] +
+          v[(j + 1) * n + i]) *
+         0.25;
 }
 
 void FluidGrid::advectVelocity(float dt) {
@@ -226,6 +225,24 @@ void FluidGrid::advectSmoke(float dt) {
   std::swap(m, newM);
 }
 
+void FluidGrid::placeSolid(float cx, float cy, float radius) {
+  int n = numX;
+  int topLeftX = std::max((int)(cx - radius), 1);
+  int topLeftY = std::max((int)(cy - radius), 1);
+  int rightBound = std::min((int)(cx + radius), numX - 2);
+  int downBound = std::min((int)(cy + radius), numY - 2);
+
+  for (int j = topLeftY; j <= downBound; j++) {
+    for (int i = topLeftX; i <= rightBound; i++) {
+      float dx = i - cx;
+      float dy = j - cy;
+      if (dx * dx + dy * dy >= radius * radius)
+        continue;
+      s[j * n + i] = 0.0f;
+    }
+  }
+}
+
 /*
 void FluidGrid::placeSolid(float x, float y, float radius) {
   int topLeftX = utils::max<int>(x - radius, 1.0f);
@@ -276,17 +293,16 @@ void FluidGrid::injectInlet(float speed) {
   int n = numX;
   int r = 8;
   int mid = numY / 2;
-  for (int j = mid - r; j < mid + r; j++) {
+  for (int j = 0; j < numY; j++) {
+    if (j >= mid - r && j <= mid + r) {
+      m[j * n + 1] = 1.0f;
+    }
     u[j * n + 1] = speed;
-  }
-  r = 6;
-  for (int j = mid - r; j < mid + r; j++) {
-    m[j * n + 1] = 1.0f;
   }
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
-  injectInlet(2);
+  injectInlet(10);
 
   integrate(dt, gravity);
 

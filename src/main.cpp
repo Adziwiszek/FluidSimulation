@@ -18,8 +18,10 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
+bool didStep = false;
 bool space_clicked = false;
 bool lmb_pressed = false;
+bool r_pressed = false;
 utils::CursorPos curpos;
 
 void processInput(GLFWwindow *window, bool *simulating) {
@@ -44,6 +46,15 @@ void processInput(GLFWwindow *window, bool *simulating) {
   if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE &&
       lmb_pressed) {
     lmb_pressed = false;
+  }
+
+  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS && !r_pressed) {
+    r_pressed = true;
+  }
+
+  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE && r_pressed) {
+    r_pressed = false;
+    didStep = false;
   }
 }
 
@@ -98,7 +109,7 @@ int main() {
     std::chrono::duration<float> dtChrono = currentTime - prevTime;
     prevTime = currentTime;
     float dt = dtChrono.count();
-    float sim_dt = dt;
+    float sim_dt = dt / 10;
     //std::cout << "delta time = " << sim_dt << ", FPS = " << 1.0 / dt << "\n";
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -112,6 +123,16 @@ int main() {
       printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
       //simulation.placeFluid(curpos.x, curpos.y, 10);
       //simulation.placeSolid(curpos.x, curpos.y, 10);
+    }
+    if(r_pressed) {
+      didStep = true;
+    }
+
+    if(didStep) {
+      printf("stepping\n");
+      simulating = true;
+    } else {
+      //simulating = false;
     }
 
     if (simulating) {
