@@ -12,8 +12,8 @@ GridRenderer::GridRenderer(const FluidGrid &grid) : grid{grid} {
 
   glGenTextures(1, &fluidTexture);
   glBindTexture(GL_TEXTURE_2D, fluidTexture);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
@@ -86,8 +86,8 @@ void GridRenderer::updateFluidTexture() {
   int h = grid.getNumY();
 
   glBindTexture(GL_TEXTURE_2D, fluidTexture);
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, h);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, h, w, 0, GL_RED,
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, w);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, w, h, 0, GL_RED,
                GL_FLOAT, grid.m);
   glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
@@ -97,8 +97,8 @@ void GridRenderer::updateSolidTexture() {
   int h = grid.getNumY();
 
   glBindTexture(GL_TEXTURE_2D, solidTexture);
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, h);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, h, w, 0, GL_RED,
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, w);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, w, h, 0, GL_RED,
                GL_FLOAT, grid.s);
   glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
