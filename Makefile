@@ -1,2 +1,2 @@
 all:
-	cmake --build build
+	cmake --build build --parallel 8

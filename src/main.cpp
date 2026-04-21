@@ -47,8 +47,11 @@ void processInput(GLFWwindow *window, bool *simulating) {
   }
 }
 
-glm::mat4 proj = glm::ortho(Origin[0], Origin[0] + L[0], 
-                            Origin[1], Origin[1] + L[1]);
+glm::mat4 proj = glm::ortho(
+    Origin[0], 
+    (float)L[1], 
+    Origin[1], 
+    (float)L[0]);
 
 int main() {
   srand(67);
@@ -81,13 +84,13 @@ int main() {
 
   Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
-  FluidGrid simulation(D[0], 1.9, N[1], N[0]);
+  FluidGrid simulation(D[0], 1.9, N[0], N[1]);
   GridRenderer renderer(simulation);
   renderer.buildGrid();
 
   bool simulating = true;
   float gravity = 0.0;
-  int numIters = 20;
+  int numIters = 30;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
   while (!glfwWindowShouldClose(window)) {

@@ -25,20 +25,20 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   std::fill(s, s + numCells, 1.0);
   std::fill(u, u + numCells, 0.0);
   std::fill(v, v + numCells, 0.0);
-  std::fill(m, m + numCells, 1.0);
+  std::fill(m, m + numCells, 0.0);
 
   // set solid values for border fields
   int n = this->numY;
-  // left + right
+  // top + bottom
   for (int j = 0; j < this->numY; j++) {
     s[0 * n + j] = 0.0f;
     s[(this->numX - 1) * n + j] = 0.0f;
   }
 
-  // top + bottom
+  // left + right
   for (int i = 0; i < this->numX; i++) {
     s[i * n + 0] = 0.0f;
-    s[i * n + (this->numY - 1)] = 0.0f;
+    // s[i * n + (this->numY - 1)] = 0.0f;
   }
 }
 
@@ -273,15 +273,16 @@ void FluidGrid::placeFluid(float x, float y, float radius) {
 
 void FluidGrid::injectInlet(float speed) {
   int n = numY;
-
-  for (int j = 1; j < numY - 1; j++) {
-    u[1 * n + j] = speed;
-    m[1 * n + j] = 1.0f;
+  int r = 16;
+  int mid = numX / 2;
+  for (int i = mid - r; i < mid + r; i++) {
+    u[i * n + 1] = speed;
+    m[i * n + 1] = 1.0f;
   }
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
-  //injectInlet(10);
+  injectInlet(10);
 
   integrate(dt, gravity);
 
