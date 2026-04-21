@@ -26,6 +26,8 @@ FluidGrid::FluidGrid(float h, float overRelaxation)
     solid[0][col] = 1;
     solid[N_REAL[1] - 1][col] = 1;
   }
+
+  placeSolid(70.0, 75.0, 15.0);
 }
 
 void FluidGrid::integrate(float dt, float gravity) {
@@ -75,7 +77,7 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
 void FluidGrid::extrapolate() {
   for (int row = 0; row < N_REAL[1]; row++) {
     velocityX[row][0] = velocityX[row][1];
-    velocityX[row][N_REAL[0] - 1] = velocityX[row][N_REAL[0] - 2];
+    //velocityX[row][N_REAL[0] - 1] = velocityX[row][N_REAL[0] - 2];
   }
   for (int col = 0; col < N_REAL[0]; col++) {
     velocityY[0][col] = velocityY[1][col];
@@ -142,8 +144,7 @@ void FluidGrid::advectVelocity(float dt) {
   for (int row = 1; row < N_REAL[1] - 1; row++) {
     for (int col = 1; col < N_REAL[0] - 1; col++) {
       // horizontal component
-      if (solid[row][col] == 0.0 && solid[row][col - 1] == 0.0 &&
-          row < N_REAL[1] - 1) {
+      if (solid[row][col] == 0.0 && solid[row][col - 1] == 0.0) {
         float x = col * h;
         float y = row * h + h2;
         float u = velocityX[row][col];
@@ -154,8 +155,7 @@ void FluidGrid::advectVelocity(float dt) {
         newVelocityX[row][col] = u;
       }
       // vertical component
-      if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0 &&
-          col < N_REAL[0] - 1) {
+      if (solid[row][col] == 0.0 && solid[row - 1][col] == 0.0) {
         float x = col * h + h2;
         float y = row * h;
         float u = avgVelocityX(row, col);
@@ -253,9 +253,9 @@ void FluidGrid::injectInlet(float speed) {
   int mid = N_REAL[1] / 2;
   int r = N_REAL[1] / 32;
   for (int row = mid - r; row <= mid + r; row++) {
-    velocityX[row][1] = speed;
-    smoke[row][1] = 1;
-    smoke[row][2] = 1;
+    velocityX[row][0] = speed;
+    smoke[row][0] = 1;
+    //smoke[row][2] = 1;
   }
 }
 
