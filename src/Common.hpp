@@ -9,13 +9,13 @@
 
 constexpr int NDIM = 2;
 
-constexpr size_t WINDOW_WIDTH = 1200;
+constexpr size_t WINDOW_WIDTH = 1400;
 constexpr size_t WINDOW_HEIGHT = 800;
 
 /* Origin */
 constexpr std::array<float, NDIM> Origin = {0.0f, 0.0f};
 /* Number of cells in each coordinate */
-constexpr std::array<unsigned int, NDIM> N = {200, 150};
+constexpr std::array<unsigned int, NDIM> N = {250, 150};
 constexpr std::array<unsigned int, NDIM> N_REAL = {N[0] + 2, N[1] + 2};
 /* Size of the grid */
 constexpr std::array<unsigned int, NDIM> L = {

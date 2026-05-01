@@ -32,7 +32,7 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   // left + right
   for (int j = 0; j < this->numY; j++) {
     s[j * n + 0] = 0.0f;
-    // s[j * n + (this->numX - 1)] = 0.0f;
+    //s[j * n + (this->numX - 1)] = 0.0f;
   }
   // top + bottom
   for (int i = 0; i < this->numX; i++) {
@@ -50,8 +50,9 @@ void FluidGrid::integrate(float dt, float gravity) {
   int n = numX;
   for (int i = 1; i < numX - 1; i++) {
     for (int j = 1; j < numY - 1; j++) {
-      if (s[j * n + i] != 0.0 && s[(j - 1) * n + i] != 0.0)
+      if (s[j * n + i] != 0.0 && s[(j - 1) * n + i] != 0.0 && m[j * n + i] > 0.0) {
         v[j * n + i] += gravity * dt;
+      }
     }
   }
 }
@@ -80,6 +81,7 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
             u[j * n + i + 1] - u[j * n + i] + v[(j + 1) * n + i] - v[j * n + i];
         total_div += div;
 
+        // Calculate pressure
         float p = -div / s;
         p *= overRelaxation;
 
@@ -89,7 +91,7 @@ void FluidGrid::solveIncompressibility(int numIter, float dt) {
         v[(j + 1) * n + i] += sy1 * p;
       }
     }
-    printf("Divergence = %f\n", total_div);
+    printf("Divergence = %f\n", total_div / numCells);
   }
 }
 
@@ -239,55 +241,29 @@ void FluidGrid::placeSolid(float cx, float cy, float radius) {
       if (dx * dx + dy * dy >= radius * radius)
         continue;
       s[j * n + i] = 0.0f;
+      m[j * n + i] = 0.0f;
     }
   }
 }
 
-/*
-void FluidGrid::placeSolid(float x, float y, float radius) {
-  int topLeftX = utils::max<int>(x - radius, 1.0f);
-  int topLeftY = utils::max<int>(y - radius, 1.0f);
-  int rightBound = utils::min<int>(x + radius, N_REAL[0] - 1);
-  int downBound = utils::min<int>(y + radius, N_REAL[1] - 1);
+void FluidGrid::placeFluid(float cx, float cy, float radius) {
+  int n = numX;
+  int topLeftX = std::max((int)(cx - radius), 1);
+  int topLeftY = std::max((int)(cy - radius), 1);
+  int rightBound = std::min((int)(cx + radius), numX - 2);
+  int downBound = std::min((int)(cy + radius), numY - 2);
 
-  for (int row = topLeftY; row <= downBound; row++) {
-    for (int col = topLeftX; col <= rightBound; col++) {
-      if (utils::euclid_dist(x, y, col, row) >= radius)
+  for (int j = topLeftY; j <= downBound; j++) {
+    for (int i = topLeftX; i <= rightBound; i++) {
+      float dx = i - cx;
+      float dy = j - cy;
+      if (dx * dx + dy * dy >= radius * radius
+          || s[j * n + i] == 0.0)
         continue;
-      solid[row][col] = 1;
+      m[j * n + i] = 1.0f;
     }
   }
 }
-
-void FluidGrid::placeFluidRect(float x, float y, float len) {
-  int topLeftX = utils::max<int>(x, 1.0f);
-  int topLeftY = utils::max<int>(y, 1.0f);
-  int rightBound = utils::min<int>(topLeftX + len, N_REAL[0] - 1);
-  int downBound = utils::min<int>(topLeftY + len, N_REAL[1] - 1);
-
-  for (int row = topLeftY; row <= downBound; row++) {
-    for (int col = topLeftX; col <= rightBound; col++) {
-      smoke[row][col] = 1;
-    }
-  }
-}
-
-void FluidGrid::placeFluid(float x, float y, float radius) {
-  int topLeftX = utils::max<int>(x - radius, 1.0f);
-  int topLeftY = utils::max<int>(y - radius, 1.0f);
-  int rightBound = utils::min<int>(x + radius, N_REAL[0] - 1);
-  int downBound = utils::min<int>(y + radius, N_REAL[1] - 1);
-
-  for (int row = topLeftY; row <= downBound; row++) {
-    for (int col = topLeftX; col <= rightBound; col++) {
-      if (utils::euclid_dist(x, y, col, row) >= radius ||
-          solid[row][col] > 0)
-        continue;
-      smoke[row][col] = 1;
-    }
-  }
-}
-*/
 
 void FluidGrid::injectInlet(float speed) {
   int n = numX;
@@ -302,14 +278,16 @@ void FluidGrid::injectInlet(float speed) {
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
+  // add forces, modify velocity values
   injectInlet(10);
-
   integrate(dt, gravity);
-
-  solveIncompressibility(numIters, dt);
-
   extrapolate();
 
+  // projection (make the fluid incompressible)
+  solveIncompressibility(numIters, dt);
+
+  // move the velocity field (advection)
   advectVelocity(dt);
   advectSmoke(dt);
+  
 }

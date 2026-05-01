@@ -101,7 +101,7 @@ int main() {
 
   bool simulating = true;
   float gravity = 0.0;
-  int numIters = 75;
+  int numIters = 120;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
   while (!glfwWindowShouldClose(window)) {
@@ -122,7 +122,7 @@ int main() {
       curpos.toWorldCoordinates();
       printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
       //simulation.placeFluid(curpos.x, curpos.y, 10);
-      //simulation.placeSolid(curpos.x, curpos.y, 10);
+      simulation.placeSolid(curpos.x, curpos.y, 10);
     }
     if(r_pressed) {
       didStep = true;
