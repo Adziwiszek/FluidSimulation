@@ -19,17 +19,21 @@
  * Inspiration and reference: https://www.youtube.com/watch?v=iKAVRgIrUOU
  * */
 class FluidGrid {
-  float overRelaxation{1.7};
+  float overRelaxation{1.1};
   float h;
   int numX;
   int numY;
   int numCells;
+  float density{1.0f};
+  float maxVelocity{0.0f};
 
   enum FieldType {
     U_FIELD,
     V_FIELD,
     S_FIELD,
   };
+
+  void updateMaxVelocity(float vel);
 public:
   float* u;
   float* v;
@@ -40,6 +44,7 @@ public:
   float* s;
   float* m;
   float* newM;
+  float* pressure;
 
   FluidGrid(float h, float overRelaxation, int numX, int numY);
 
@@ -49,7 +54,8 @@ public:
   void integrate(float dt, float gravity);
   void injectInlet(float speed);
 
-  void solveIncompressibility(int numIter, float dt);
+  void solvePressure(int numIter, float dt);
+  void applyPressure(float dt);
   /* Extrapolates velocity values near the border to border cells. */
   void extrapolate();
 

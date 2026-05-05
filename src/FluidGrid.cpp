@@ -17,6 +17,7 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   v = new float[numCells];
   m = new float[numCells];
   s = new float[numCells];
+  pressure = new float[numCells];
 
   newU = new float[numCells];
   newV = new float[numCells];
@@ -26,13 +27,14 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   std::fill(u, u + numCells, 0.0);
   std::fill(v, v + numCells, 0.0);
   std::fill(m, m + numCells, 0.0);
+  std::fill(pressure, pressure + numCells, 0.0);
 
   // set solid values for border fields
   int n = this->numX;
   // left + right
   for (int j = 0; j < this->numY; j++) {
     s[j * n + 0] = 0.0f;
-    //s[j * n + (this->numX - 1)] = 0.0f;
+    // s[j * n + (this->numX - 1)] = 0.0f;
   }
   // top + bottom
   for (int i = 0; i < this->numX; i++) {
@@ -43,6 +45,10 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   placeSolid(75, 75, 15.0);
 }
 
+void FluidGrid::updateMaxVelocity(float vel) {
+  maxVelocity = std::max(maxVelocity, std::abs(vel));
+}
+
 int FluidGrid::getNumX() const { return numX; }
 int FluidGrid::getNumY() const { return numY; }
 
@@ -50,48 +56,82 @@ void FluidGrid::integrate(float dt, float gravity) {
   int n = numX;
   for (int i = 1; i < numX - 1; i++) {
     for (int j = 1; j < numY - 1; j++) {
-      if (s[j * n + i] != 0.0 && s[(j - 1) * n + i] != 0.0 && m[j * n + i] > 0.0) {
+      if (s[j * n + i] != 0.0 && s[(j - 1) * n + i] != 0.0 &&
+          m[j * n + i] > 0.0) {
         v[j * n + i] += gravity * dt;
       }
     }
   }
 }
 
-void FluidGrid::solveIncompressibility(int numIter, float dt) {
+void FluidGrid::solvePressure(int numIter, float dt) {
   int n = numX;
 
+  std::fill(pressure, pressure + numCells, 0.0f);
+
   for (int ni = 0; ni < numIter; ni++) {
-    float total_div = 0;
+    float totalDiv = 0.0;
     for (int i = 1; i < numX - 1; i++) {
       for (int j = 1; j < numY - 1; j++) {
-        float s = this->s[j * n + i];
-        if (s == 0)
+        if (s[j * n + i] == 0.0f)
           continue;
 
-        float sx0 = this->s[j * n + i - 1];
-        float sx1 = this->s[j * n + i + 1];
-        float sy0 = this->s[(j - 1) * n + i];
-        float sy1 = this->s[(j + 1) * n + i];
-        s = sx0 + sx1 + sy0 + sy1;
+        float fluidLeft = s[j * n + i - 1];
+        float fluidRight = s[j * n + i + 1];
+        float fluidBottom = s[(j - 1) * n + i];
+        float fluidTop = s[(j + 1) * n + i];
+        float stotal = fluidLeft + fluidRight + fluidBottom + fluidTop;
 
-        if (s == 0.0)
+        if (stotal == 0.0f)
           continue;
 
-        float div =
-            u[j * n + i + 1] - u[j * n + i] + v[(j + 1) * n + i] - v[j * n + i];
-        total_div += div;
+        float uR = u[j * n + i + 1] * fluidRight;
+        float uL = u[j * n + i] * fluidLeft;
+        float vT = v[(j + 1) * n + i] * fluidTop;
+        float vB = v[j * n + i] * fluidBottom;
+        float pressureLeft = pressure[j * n + i - 1] * fluidLeft;
+        float pressureRight = pressure[j * n + i + 1] * fluidRight;
+        float pressureBottom = pressure[(j - 1) * n + i] * fluidBottom;
+        float pressureTop = pressure[(j + 1) * n + i] * fluidTop;
 
-        // Calculate pressure
-        float p = -div / s;
-        p *= overRelaxation;
+        float divergence = uR - uL + vT - vB;
+        totalDiv += std::abs(divergence);
 
-        u[j * n + i] -= sx0 * p;
-        u[j * n + i + 1] += sx1 * p;
-        v[j * n + i] -= sy0 * p;
-        v[(j + 1) * n + i] += sy1 * p;
+        float pressureSum =
+            pressureLeft + pressureRight + pressureTop + pressureBottom;
+
+        float newPressure =
+            (pressureSum - density * h * divergence / dt) / stotal;
+        pressure[j * n + i] = (1.0f - overRelaxation) * pressure[j * n + i] +
+                              overRelaxation * newPressure;
       }
     }
-    printf("Divergence = %f\n", total_div / numCells);
+    printf("divergence = %f\n", totalDiv);
+  }
+  //???
+  for (int j = 0; j < numY; j++) {
+    pressure[j * numX + (numX - 1)] = 0.0f;
+    pressure[j * numX + (numX - 2)] = 0.0f;
+  }
+}
+
+void FluidGrid::applyPressure(float dt) {
+  int n = numX;
+  const float K = dt / (density * h);
+
+  for (int i = 1; i < numX - 1; i++) {
+    for (int j = 1; j < numY - 1; j++) {
+      if (s[j * n + i] == 0.0f)
+        continue;
+
+      // u, horizontal edges
+      u[j * n + i] -= K * (pressure[j * n + i] - pressure[j * n + i - 1]);
+      // v, vertical edges
+      v[j * n + i] -= K * (pressure[j * n + i] - pressure[(j - 1) * n + i]);
+
+      updateMaxVelocity(u[j * n + i]);
+      updateMaxVelocity(v[j * n + i]);
+    }
   }
 }
 
@@ -257,8 +297,7 @@ void FluidGrid::placeFluid(float cx, float cy, float radius) {
     for (int i = topLeftX; i <= rightBound; i++) {
       float dx = i - cx;
       float dy = j - cy;
-      if (dx * dx + dy * dy >= radius * radius
-          || s[j * n + i] == 0.0)
+      if (dx * dx + dy * dy >= radius * radius || s[j * n + i] == 0.0)
         continue;
       m[j * n + i] = 1.0f;
     }
@@ -271,23 +310,24 @@ void FluidGrid::injectInlet(float speed) {
   int mid = numY / 2;
   for (int j = 0; j < numY; j++) {
     if (j >= mid - r && j <= mid + r) {
-      m[j * n + 1] = 1.0f;
+      m[j * n + 2] = 1.0f;
     }
-    u[j * n + 1] = speed;
+    u[j * n + 2] = speed;
   }
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
+  // determine dt
   // add forces, modify velocity values
   injectInlet(10);
   integrate(dt, gravity);
   extrapolate();
 
   // projection (make the fluid incompressible)
-  solveIncompressibility(numIters, dt);
+  solvePressure(numIters, dt);
+  applyPressure(dt);
 
   // move the velocity field (advection)
   advectVelocity(dt);
   advectSmoke(dt);
-  
 }

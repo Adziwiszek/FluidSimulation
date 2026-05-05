@@ -109,7 +109,7 @@ int main() {
     std::chrono::duration<float> dtChrono = currentTime - prevTime;
     prevTime = currentTime;
     float dt = dtChrono.count();
-    float sim_dt = dt / 10;
+    float sim_dt = dt / 100;
     //std::cout << "delta time = " << sim_dt << ", FPS = " << 1.0 / dt << "\n";
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -121,8 +121,8 @@ int main() {
       glfwGetCursorPos(window, &curpos.x, &curpos.y);
       curpos.toWorldCoordinates();
       printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
-      //simulation.placeFluid(curpos.x, curpos.y, 10);
-      simulation.placeSolid(curpos.x, curpos.y, 10);
+      simulation.placeFluid(curpos.x, curpos.y, 10);
+      //simulation.placeSolid(curpos.x, curpos.y, 10);
     }
     if(r_pressed) {
       didStep = true;
