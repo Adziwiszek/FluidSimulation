@@ -2,10 +2,8 @@
 #include <FluidGrid.hpp>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
-#include <print>
-
-using std::printf;
 
 FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
     : h{h}, overRelaxation{overRelaxation} {
@@ -34,7 +32,7 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   // left + right
   for (int j = 0; j < this->numY; j++) {
     s[j * n + 0] = 0.0f;
-    // s[j * n + (this->numX - 1)] = 0.0f;
+    s[j * n + (this->numX - 1)] = 0.0f;
   }
   // top + bottom
   for (int i = 0; i < this->numX; i++) {
@@ -43,10 +41,6 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   }
 
   placeSolid(75, 75, 15.0);
-}
-
-void FluidGrid::updateMaxVelocity(float vel) {
-  maxVelocity = std::max(maxVelocity, std::abs(vel));
 }
 
 int FluidGrid::getNumX() const { return numX; }
@@ -65,58 +59,53 @@ void FluidGrid::integrate(float dt, float gravity) {
 }
 
 void FluidGrid::solvePressure(int numIter, float dt) {
-  int n = numX;
+  const int n = numX;
 
   std::fill(pressure, pressure + numCells, 0.0f);
 
   for (int ni = 0; ni < numIter; ni++) {
-    float totalDiv = 0.0;
+    float totalDiv = 0.0f;
     for (int i = 1; i < numX - 1; i++) {
       for (int j = 1; j < numY - 1; j++) {
         if (s[j * n + i] == 0.0f)
           continue;
 
-        float fluidLeft = s[j * n + i - 1];
-        float fluidRight = s[j * n + i + 1];
-        float fluidBottom = s[(j - 1) * n + i];
-        float fluidTop = s[(j + 1) * n + i];
-        float stotal = fluidLeft + fluidRight + fluidBottom + fluidTop;
+        const float fluidLeft = s[j * n + i - 1];
+        const float fluidRight = s[j * n + i + 1];
+        const float fluidBottom = s[(j - 1) * n + i];
+        const float fluidTop = s[(j + 1) * n + i];
+        const float stotal = fluidLeft + fluidRight + fluidBottom + fluidTop;
 
         if (stotal == 0.0f)
           continue;
 
-        float uR = u[j * n + i + 1] * fluidRight;
-        float uL = u[j * n + i] * fluidLeft;
-        float vT = v[(j + 1) * n + i] * fluidTop;
-        float vB = v[j * n + i] * fluidBottom;
-        float pressureLeft = pressure[j * n + i - 1] * fluidLeft;
-        float pressureRight = pressure[j * n + i + 1] * fluidRight;
-        float pressureBottom = pressure[(j - 1) * n + i] * fluidBottom;
-        float pressureTop = pressure[(j + 1) * n + i] * fluidTop;
+        const float uR = u[j * n + i + 1] * fluidRight;
+        const float uL = u[j * n + i] * fluidLeft;
+        const float vT = v[(j + 1) * n + i] * fluidTop;
+        const float vB = v[j * n + i] * fluidBottom;
+        const float pressureLeft = pressure[j * n + i - 1] * fluidLeft;
+        const float pressureRight = pressure[j * n + i + 1] * fluidRight;
+        const float pressureBottom = pressure[(j - 1) * n + i] * fluidBottom;
+        const float pressureTop = pressure[(j + 1) * n + i] * fluidTop;
 
-        float divergence = uR - uL + vT - vB;
+        const float divergence = uR - uL + vT - vB;
         totalDiv += std::abs(divergence);
 
-        float pressureSum =
+        const float pressureSum =
             pressureLeft + pressureRight + pressureTop + pressureBottom;
+        const float rhs = (density * h / dt) * divergence;
+        const float newPressure = (pressureSum - rhs) / stotal;
 
-        float newPressure =
-            (pressureSum - density * h * divergence / dt) / stotal;
-        pressure[j * n + i] = (1.0f - overRelaxation) * pressure[j * n + i] +
-                              overRelaxation * newPressure;
+        const float oldPressure = pressure[j * n + i];
+        pressure[j * n + i] = oldPressure + overRelaxation * (newPressure - oldPressure);
       }
     }
     printf("divergence = %f\n", totalDiv);
   }
-  //???
-  for (int j = 0; j < numY; j++) {
-    pressure[j * numX + (numX - 1)] = 0.0f;
-    pressure[j * numX + (numX - 2)] = 0.0f;
-  }
 }
 
 void FluidGrid::applyPressure(float dt) {
-  int n = numX;
+  const int n = numX;
   const float K = dt / (density * h);
 
   for (int i = 1; i < numX - 1; i++) {
@@ -124,13 +113,21 @@ void FluidGrid::applyPressure(float dt) {
       if (s[j * n + i] == 0.0f)
         continue;
 
-      // u, horizontal edges
-      u[j * n + i] -= K * (pressure[j * n + i] - pressure[j * n + i - 1]);
-      // v, vertical edges
-      v[j * n + i] -= K * (pressure[j * n + i] - pressure[(j - 1) * n + i]);
+      const float dpLeft = pressure[j * n + i] - pressure[j * n + i - 1];
+      const float dpBottom = pressure[j * n + i] - pressure[(j - 1) * n + i];
 
-      updateMaxVelocity(u[j * n + i]);
-      updateMaxVelocity(v[j * n + i]);
+      u[j * n + i] -= K * dpLeft;
+      v[j * n + i] -= K * dpBottom;
+
+      // Set velocity to 0 on edges that face solid
+      if (s[j * n + i - 1] == 0.0f)
+        u[j * n + i] = 0.0f;
+      if (s[j * n + i + 1] == 0.0f)
+        u[j * n + i + 1] = 0.0f;
+      if (s[(j - 1) * n + i] == 0.0f)
+        v[j * n + i] = 0.0f;
+      if (s[(j + 1) * n + i] == 0.0f)
+        v[(j + 1) * n + i] = 0.0f;
     }
   }
 }
@@ -178,18 +175,18 @@ float FluidGrid::sampleField(float x, float y, FieldType field) {
     break;
   }
 
-  int x0 = std::min((int)std::floor((x - dx) * h1), numX - 1);
-  float tx = ((x - dx) - x0 * h) * h1;
-  int x1 = std::min(x0 + 1, numX - 1);
+  const int x0 = std::min((int)std::floor((x - dx) * h1), numX - 1);
+  const float tx = ((x - dx) - x0 * h) * h1;
+  const int x1 = std::min(x0 + 1, numX - 1);
 
-  int y0 = std::min((int)std::floor((y - dy) * h1), numY - 1);
-  float ty = ((y - dy) - y0 * h) * h1;
-  int y1 = std::min(y0 + 1, numY - 1);
+  const int y0 = std::min((int)std::floor((y - dy) * h1), numY - 1);
+  const float ty = ((y - dy) - y0 * h) * h1;
+  const int y1 = std::min(y0 + 1, numY - 1);
 
-  float sx = 1.0 - tx;
-  float sy = 1.0 - ty;
+  const float sx = 1.0 - tx;
+  const float sy = 1.0 - ty;
 
-  float val = sx * sy * f[y0 * n + x0] + tx * sy * f[y0 * n + x1] +
+  const float val = sx * sy * f[y0 * n + x0] + tx * sy * f[y0 * n + x1] +
               tx * ty * f[y1 * n + x1] + sx * ty * f[y1 * n + x0];
 
   return val;
@@ -223,7 +220,7 @@ void FluidGrid::advectVelocity(float dt) {
         float x = i * h;
         float y = j * h + h2;
         float u = this->u[j * n + i];
-        float v = avgV(i, j);
+        const float v = avgV(i, j);
         x = x - dt * u;
         y = y - dt * v;
         u = sampleField(x, y, U_FIELD);
@@ -233,7 +230,7 @@ void FluidGrid::advectVelocity(float dt) {
       if (s[j * n + i] != 0.0 && s[(j - 1) * n + i] != 0.0 && i < numX - 1) {
         float x = i * h + h2;
         float y = j * h;
-        float u = avgU(i, j);
+        const float u = avgU(i, j);
         float v = this->v[j * n + i];
         x = x - dt * u;
         y = y - dt * v;
@@ -256,10 +253,10 @@ void FluidGrid::advectSmoke(float dt) {
   for (int i = 1; i < numX - 1; i++) {
     for (int j = 1; j < numY - 1; j++) {
       if (s[j * n + i] != 0.0) {
-        float u = (this->u[j * n + i] + this->u[j * n + i + 1]) * 0.5;
-        float v = (this->v[j * n + i] + this->v[(j + 1) * n + i]) * 0.5;
-        float x = i * h + h2 - dt * u;
-        float y = j * h + h2 - dt * v;
+        const float u = (this->u[j * n + i] + this->u[j * n + i + 1]) * 0.5;
+        const float v = (this->v[j * n + i] + this->v[(j + 1) * n + i]) * 0.5;
+        const float x = i * h + h2 - dt * u;
+        const float y = j * h + h2 - dt * v;
         newM[j * n + i] = sampleField(x, y, S_FIELD);
       }
     }
@@ -268,16 +265,16 @@ void FluidGrid::advectSmoke(float dt) {
 }
 
 void FluidGrid::placeSolid(float cx, float cy, float radius) {
-  int n = numX;
-  int topLeftX = std::max((int)(cx - radius), 1);
-  int topLeftY = std::max((int)(cy - radius), 1);
-  int rightBound = std::min((int)(cx + radius), numX - 2);
-  int downBound = std::min((int)(cy + radius), numY - 2);
+  const int n = numX;
+  const int topLeftX = std::max((int)(cx - radius), 1);
+  const int topLeftY = std::max((int)(cy - radius), 1);
+  const int rightBound = std::min((int)(cx + radius), numX - 2);
+  const int downBound = std::min((int)(cy + radius), numY - 2);
 
   for (int j = topLeftY; j <= downBound; j++) {
     for (int i = topLeftX; i <= rightBound; i++) {
-      float dx = i - cx;
-      float dy = j - cy;
+      const float dx = i - cx;
+      const float dy = j - cy;
       if (dx * dx + dy * dy >= radius * radius)
         continue;
       s[j * n + i] = 0.0f;
@@ -287,16 +284,16 @@ void FluidGrid::placeSolid(float cx, float cy, float radius) {
 }
 
 void FluidGrid::placeFluid(float cx, float cy, float radius) {
-  int n = numX;
-  int topLeftX = std::max((int)(cx - radius), 1);
-  int topLeftY = std::max((int)(cy - radius), 1);
-  int rightBound = std::min((int)(cx + radius), numX - 2);
-  int downBound = std::min((int)(cy + radius), numY - 2);
+  const int n = numX;
+  const int topLeftX = std::max((int)(cx - radius), 1);
+  const int topLeftY = std::max((int)(cy - radius), 1);
+  const int rightBound = std::min((int)(cx + radius), numX - 2);
+  const int downBound = std::min((int)(cy + radius), numY - 2);
 
   for (int j = topLeftY; j <= downBound; j++) {
     for (int i = topLeftX; i <= rightBound; i++) {
-      float dx = i - cx;
-      float dy = j - cy;
+      const float dx = i - cx;
+      const float dy = j - cy;
       if (dx * dx + dy * dy >= radius * radius || s[j * n + i] == 0.0)
         continue;
       m[j * n + i] = 1.0f;
@@ -305,9 +302,10 @@ void FluidGrid::placeFluid(float cx, float cy, float radius) {
 }
 
 void FluidGrid::injectInlet(float speed) {
-  int n = numX;
-  int r = 8;
-  int mid = numY / 2;
+  const int n = numX;
+  const int r = 8;
+  const int mid = numY / 2;
+
   for (int j = 0; j < numY; j++) {
     if (j >= mid - r && j <= mid + r) {
       m[j * n + 2] = 1.0f;
@@ -317,17 +315,17 @@ void FluidGrid::injectInlet(float speed) {
 }
 
 void FluidGrid::simulate(float dt, float gravity, int numIters) {
-  // determine dt
-  // add forces, modify velocity values
-  injectInlet(10);
+  // injectInlet(10);
+  // Add gravity
   integrate(dt, gravity);
-  extrapolate();
 
-  // projection (make the fluid incompressible)
+  // Projection (make the fluid incompressible)
   solvePressure(numIters, dt);
   applyPressure(dt);
 
-  // move the velocity field (advection)
+  // Extrapolate values at the border cells
+  extrapolate();
+  // Move the velocity field (advection)
   advectVelocity(dt);
   advectSmoke(dt);
 }

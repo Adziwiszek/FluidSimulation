@@ -100,7 +100,7 @@ int main() {
   renderer.buildGrid();
 
   bool simulating = true;
-  float gravity = 0.0;
+  float gravity = -9.81;
   int numIters = 120;
   auto prevTime = std::chrono::high_resolution_clock::now();
 
@@ -109,7 +109,7 @@ int main() {
     std::chrono::duration<float> dtChrono = currentTime - prevTime;
     prevTime = currentTime;
     float dt = dtChrono.count();
-    float sim_dt = dt / 100;
+    float sim_dt = dt;
     //std::cout << "delta time = " << sim_dt << ", FPS = " << 1.0 / dt << "\n";
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);

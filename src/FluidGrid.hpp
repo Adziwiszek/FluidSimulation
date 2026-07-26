@@ -19,13 +19,12 @@
  * Inspiration and reference: https://www.youtube.com/watch?v=iKAVRgIrUOU
  * */
 class FluidGrid {
-  float overRelaxation{1.1};
+  float overRelaxation{1.2};
   float h;
   int numX;
   int numY;
   int numCells;
   float density{1.0f};
-  float maxVelocity{0.0f};
 
   enum FieldType {
     U_FIELD,
@@ -33,7 +32,6 @@ class FluidGrid {
     S_FIELD,
   };
 
-  void updateMaxVelocity(float vel);
 public:
   float* u;
   float* v;
