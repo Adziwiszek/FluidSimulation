@@ -1,12 +1,12 @@
 #pragma once
 
-#include <glad.h>
 #include <GLFW/glfw3.h>
+#include <array>
+#include <glad.h>
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
-#include <array>
 
-#include <Common.hpp>
+struct SimSettings;
 
 /* Class to manage simulation grid.
  *
@@ -14,17 +14,19 @@
  * (that's why there is N_REAL[0]).
  *
  * solid tells us if given square is a solid. If so we don't take use it in the
- * simulation. 
+ * simulation.
  *
  * Inspiration and reference: https://www.youtube.com/watch?v=iKAVRgIrUOU
  * */
 class FluidGrid {
-  float overRelaxation{1.2};
+  float overRelaxation{1.7};
+  float gravity{0.0};
   float h;
   int numX;
   int numY;
   int numCells;
   float density{1.0f};
+  void (FluidGrid::*update)();
 
   enum FieldType {
     U_FIELD,
@@ -33,18 +35,25 @@ class FluidGrid {
   };
 
 public:
-  float* u;
-  float* v;
-  float* newU;
-  float* newV;
-  int* solid;
-  float* smoke;
-  float* s;
-  float* m;
-  float* newM;
-  float* pressure;
+  float *u;
+  float *v;
+  float *newU;
+  float *newV;
+  int *solid;
+  float *smoke;
+  float *s;
+  float *m;
+  float *newM;
+  float *pressure;
 
   FluidGrid(float h, float overRelaxation, int numX, int numY);
+  void initialize(const SimSettings &settings);
+
+  void createTunnel();
+  void createBox();
+
+  void updateTunnel();
+  void updateBox();
 
   int getNumX() const;
   int getNumY() const;
@@ -64,10 +73,10 @@ public:
   void advectVelocity(float dt);
   void advectSmoke(float dt);
 
-  void placeFluid(float x, float y, float radius); 
-  void placeSolid(float x, float y, float len); 
+  void placeFluid(float x, float y, float radius);
+  void placeSolid(float x, float y, float len);
 
   void zeroSolidVelocities();
 
-  void simulate(float dt, float gravity, int numIters);
+  void simulate(float dt, int numIters);
 };

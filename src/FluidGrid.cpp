@@ -1,9 +1,11 @@
-#include "Common.hpp"
+#include <Common.hpp>
 #include <FluidGrid.hpp>
+#include <SimSettings.hpp>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+
 
 FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
     : h{h}, overRelaxation{overRelaxation} {
@@ -26,22 +28,50 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   std::fill(v, v + numCells, 0.0);
   std::fill(m, m + numCells, 0.0);
   std::fill(pressure, pressure + numCells, 0.0);
+}
 
+void FluidGrid::initialize(const SimSettings& settings) {
+  gravity = settings.gravity;
+  (this->*settings.createWorld)();
+  update = settings.update;
+}
+
+void FluidGrid::createTunnel() {
   // set solid values for border fields
-  int n = this->numX;
+  int n = numX;
   // left + right
-  for (int j = 0; j < this->numY; j++) {
+  for (int j = 0; j < numY; j++) {
     s[j * n + 0] = 0.0f;
-    s[j * n + (this->numX - 1)] = 0.0f;
   }
   // top + bottom
-  for (int i = 0; i < this->numX; i++) {
+  for (int i = 0; i < numX; i++) {
     s[0 * n + i] = 0.0f;
-    s[(this->numY - 1) * n + i] = 0.0f;
+    s[(numY - 1) * n + i] = 0.0f;
+  }
+  placeSolid(75, 75, 15.0);
+}
+
+void FluidGrid::createBox() {
+  // set solid values for border fields
+  int n = numX;
+  // left + right
+  for (int j = 0; j < numY; j++) {
+    s[j * n + 0] = 0.0f;
+    s[j * n + (numX - 1)] = 0.0f;
+  }
+  // top + bottom
+  for (int i = 0; i < numX; i++) {
+    s[0 * n + i] = 0.0f;
+    s[(numY - 1) * n + i] = 0.0f;
   }
 
   placeSolid(75, 75, 15.0);
 }
+
+void FluidGrid::updateTunnel() {
+  injectInlet(-500);
+}
+void FluidGrid::updateBox() {}
 
 int FluidGrid::getNumX() const { return numX; }
 int FluidGrid::getNumY() const { return numY; }
@@ -314,8 +344,8 @@ void FluidGrid::injectInlet(float speed) {
   }
 }
 
-void FluidGrid::simulate(float dt, float gravity, int numIters) {
-  // injectInlet(10);
+void FluidGrid::simulate(float dt, int numIters) {
+  (this->*update)();
   // Add gravity
   integrate(dt, gravity);
 

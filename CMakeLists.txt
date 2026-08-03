@@ -13,12 +13,14 @@ find_package(glm REQUIRED)
 
 add_subdirectory(extern)
 
+
 add_executable(${PROJECT_NAME}    
   src/main.cpp
   src/Shader.cpp
   src/GridRenderer.cpp
   src/FluidGrid.cpp
   src/Common.cpp
+  src/SimSettings.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -33,3 +35,5 @@ target_link_libraries(${PROJECT_NAME}
     glfw
     glm
 )
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE GLFW_INCLUDE_NONE)

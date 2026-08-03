@@ -1,18 +1,19 @@
 #include <glad.h>
 #include <GLFW/glfw3.h>
+#include <bits/stdc++.h>
+#include <chrono>
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 #include <iostream>
-#include <chrono>
-#include <bits/stdc++.h>
+#include <map>
 
-#include <Shader.hpp>
 #include <Common.hpp>
 #include <FluidGrid.hpp>
+#include <SimSettings.hpp>
 #include <GridRenderer.hpp>
+#include <Shader.hpp>
 
 using std::printf;
-
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
@@ -28,7 +29,7 @@ void processInput(GLFWwindow *window, bool *simulating) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     glfwSetWindowShouldClose(window, true);
   }
-  
+
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !space_clicked) {
     *simulating = !*simulating;
     space_clicked = true;
@@ -58,13 +59,21 @@ void processInput(GLFWwindow *window, bool *simulating) {
   }
 }
 
-glm::mat4 proj = glm::ortho(
-    Origin[0], 
-    (float)L[1], 
-    Origin[1], 
-    (float)L[0]);
+glm::mat4 proj = glm::ortho(Origin[0], (float)L[1], Origin[1], (float)L[0]);
 
-int main() {
+
+int main(int argc, char *argv[]) {
+  SimType sim = SimType::Tunnel;
+  if (argc > 1) {
+    std::string arg{argv[1]};
+    if (arg == "tunel") {
+      sim = SimType::Tunnel;
+    }
+    if (arg == "box") {
+      sim = SimType::Box;
+    }
+  }
+
   srand(67);
   if (!glfwInit()) {
     std::cerr << "Failed to initialize GLFW\n";
@@ -75,8 +84,8 @@ int main() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  GLFWwindow *window =
-      glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Hello OpenGL", nullptr, nullptr);
+  GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT,
+                                        "Hello OpenGL", nullptr, nullptr);
   if (!window) {
     std::cerr << "Failed to create window\n";
     glfwTerminate();
@@ -100,9 +109,10 @@ int main() {
   renderer.buildGrid();
 
   bool simulating = true;
-  float gravity = -9.81;
   int numIters = 120;
   auto prevTime = std::chrono::high_resolution_clock::now();
+
+  simulation.initialize(SETTINGS.at(sim));
 
   while (!glfwWindowShouldClose(window)) {
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -110,33 +120,32 @@ int main() {
     prevTime = currentTime;
     float dt = dtChrono.count();
     float sim_dt = dt;
-    //std::cout << "delta time = " << sim_dt << ", FPS = " << 1.0 / dt << "\n";
+    // std::cout << "delta time = " << sim_dt << ", FPS = " << 1.0 / dt << "\n";
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     processInput(window, &simulating);
 
-    if(lmb_pressed) {
+    if (lmb_pressed) {
       glfwGetCursorPos(window, &curpos.x, &curpos.y);
       curpos.toWorldCoordinates();
-      printf("x = %fl, y = %fl\n", curpos.x, curpos.y);
       simulation.placeFluid(curpos.x, curpos.y, 10);
-      //simulation.placeSolid(curpos.x, curpos.y, 10);
+      // simulation.placeSolid(curpos.x, curpos.y, 10);
     }
-    if(r_pressed) {
+    if (r_pressed) {
       didStep = true;
     }
 
-    if(didStep) {
+    if (didStep) {
       printf("stepping\n");
       simulating = true;
     } else {
-      //simulating = false;
+      // simulating = false;
     }
 
     if (simulating) {
-      simulation.simulate(sim_dt, gravity, numIters); 
+      simulation.simulate(sim_dt, numIters);
     }
 
     renderer.updateFluidTexture();
