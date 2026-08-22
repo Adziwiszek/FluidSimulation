@@ -6,6 +6,7 @@
 #include <glm/vec3.hpp>
 #include <iostream>
 #include <map>
+#include <memory>
 
 #include <Common.hpp>
 #include <FluidGrid.hpp>
@@ -102,7 +103,7 @@ int main(int argc, char *argv[]) {
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-  Shader shader("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
+  std::unique_ptr<Shader> shader = std::make_unique<Shader>("shaders/vertexShader.glsl", "shaders/fragmentShader.glsl");
 
   FluidGrid simulation(D[0], 1.9, N[0], N[1]);
   GridRenderer renderer(simulation);
@@ -151,10 +152,10 @@ int main(int argc, char *argv[]) {
     renderer.updateFluidTexture();
     renderer.updateSolidTexture();
 
-    shader.use();
-    shader.setMat4("proj", proj);
-    shader.setInt("smokeMap", 0);
-    shader.setInt("solidMap", 1);
+    shader->use();
+    shader->setMat4("proj", proj);
+    shader->setInt("smokeMap", 0);
+    shader->setInt("solidMap", 1);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, renderer.getFluidTexture());
@@ -167,6 +168,9 @@ int main(int argc, char *argv[]) {
     glfwPollEvents();
   }
 
+  shader.reset();
+
+  glfwDestroyWindow(window);
   glfwTerminate();
   return 0;
 }
