@@ -1,6 +1,6 @@
 #pragma once
 
-#include <AbstractSolver.hpp>
+#include "AbstractSolver.hpp"
 
 namespace Solver {
 

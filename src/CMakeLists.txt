@@ -1,9 +1,8 @@
 add_subdirectory(Solver)
+add_subdirectory(Renderer)
 
 add_executable(${PROJECT_NAME}    
   main.cpp
-  Shader.cpp
-  GridRenderer.cpp
   FluidGrid.cpp
   Common.cpp
   SimSettings.cpp
@@ -12,6 +11,7 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
     Solver
+    Renderer
 )
 
 target_include_directories(${PROJECT_NAME}

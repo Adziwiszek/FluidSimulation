@@ -2,7 +2,6 @@
 #include "Common.hpp"
 
 #include <print>
-using std::printf;
 
 GridRenderer::GridRenderer(const FluidGrid &grid) : grid{grid} {
   glGenVertexArrays(1, &vertexArray);

@@ -1,4 +1,4 @@
-#include <GaussSeidel.hpp>
+#include "GaussSeidel.hpp"
 
 namespace Solver {
 

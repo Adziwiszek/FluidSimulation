@@ -11,8 +11,8 @@
 #include <Common.hpp>
 #include <FluidGrid.hpp>
 #include <SimSettings.hpp>
-#include <GridRenderer.hpp>
-#include <Shader.hpp>
+#include <Renderer/GridRenderer.hpp>
+#include <Renderer/Shader.hpp>
 
 using std::printf;
 

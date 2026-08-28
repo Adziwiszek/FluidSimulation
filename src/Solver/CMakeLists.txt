@@ -10,5 +10,5 @@ Specifies which include directories will be used when compiling this target
 ]]
 target_include_directories(Solver
   PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/src
 )
