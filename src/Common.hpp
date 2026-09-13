@@ -53,5 +53,22 @@ namespace utils {
   }
 
   float euclid_dist(float x1, float y1, float x2, float y2);
+};
 
+struct simConstants {
+  float density;
+  float overRelaxation;
+  float h;
+  int numCells;
+  int numX;
+  int numY;
+};
+
+struct simMat {
+  float *pressure;
+  // Velocity Y
+  float *v;
+  // Velocity X
+  float *u;
+  float *s;
 };

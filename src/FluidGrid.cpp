@@ -12,6 +12,7 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   this->numX = numX + 2;
   this->numY = numY + 2;
   numCells = this->numX * this->numY;
+  constants = {density, overRelaxation, h, numCells, numX, numY};
 
   u = new float[numCells];
   v = new float[numCells];
@@ -88,15 +89,17 @@ void FluidGrid::integrate(float dt, float gravity) {
   }
 }
 
-void FluidGrid::solvePressure(int numIter, float dt) {
-  const int n = numX;
+void solvePressure2(int numIter, float dt, 
+  float *pressure, float *s, float *v, float *u, 
+  simConstants constants) {
+  const int n = constants.numX;
 
-  std::fill(pressure, pressure + numCells, 0.0f);
+  std::fill(pressure, pressure + constants.numCells, 0.0f);
 
   for (int ni = 0; ni < numIter; ni++) {
     float totalDiv = 0.0f;
-    for (int i = 1; i < numX - 1; i++) {
-      for (int j = 1; j < numY - 1; j++) {
+    for (int i = 1; i < constants.numX - 1; i++) {
+      for (int j = 1; j < constants.numY - 1; j++) {
         if (s[j * n + i] == 0.0f)
           continue;
 
@@ -123,18 +126,18 @@ void FluidGrid::solvePressure(int numIter, float dt) {
 
         const float pressureSum =
             pressureLeft + pressureRight + pressureTop + pressureBottom;
-        const float rhs = (density * h / dt) * divergence;
+        const float rhs = (constants.density * constants.h / dt) * divergence;
         const float newPressure = (pressureSum - rhs) / stotal;
 
         const float oldPressure = pressure[j * n + i];
-        pressure[j * n + i] = oldPressure + overRelaxation * (newPressure - oldPressure);
+        pressure[j * n + i] = oldPressure + constants.overRelaxation * (newPressure - oldPressure);
       }
     }
     printf("divergence = %f\n", totalDiv);
   }
 }
 
-void FluidGrid::applyPressure(float dt) {
+void FluidGrid::applyPressure(float dt, float *pressure) {
   const int n = numX;
   const float K = dt / (density * h);
 
@@ -347,11 +350,11 @@ void FluidGrid::injectInlet(float speed) {
 void FluidGrid::simulate(float dt, int numIters) {
   (this->*update)();
   // Add gravity
-  integrate(dt, gravity);
+  integrate(dt, this->gravity);
 
   // Projection (make the fluid incompressible)
-  solvePressure(numIters, dt);
-  applyPressure(dt);
+  solvePressure2(numIters, dt, this->pressure, this->s, this->v, this->u, constants);
+  applyPressure(dt, this->pressure);
 
   // Extrapolate values at the border cells
   extrapolate();

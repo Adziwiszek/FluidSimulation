@@ -6,6 +6,8 @@
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 
+#include <Common.hpp>
+
 struct SimSettings;
 
 /* Class to manage simulation grid.
@@ -19,6 +21,7 @@ struct SimSettings;
  * Inspiration and reference: https://www.youtube.com/watch?v=iKAVRgIrUOU
  * */
 class FluidGrid {
+  simConstants constants;
   float overRelaxation{1.7};
   float gravity{0.0};
   float h;
@@ -61,8 +64,8 @@ public:
   void integrate(float dt, float gravity);
   void injectInlet(float speed);
 
-  void solvePressure(int numIter, float dt);
-  void applyPressure(float dt);
+  void solvePressure(int numIter, float dt, float *pressure, float *s, float *v, float *u, int numCells, int numX, int numY);
+  void applyPressure(float dt, float *pressure);
   /* Extrapolates velocity values near the border to border cells. */
   void extrapolate();
 

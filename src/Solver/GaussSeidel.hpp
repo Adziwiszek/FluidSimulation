@@ -10,6 +10,7 @@ namespace Solver {
 class GaussSeidel : public AbstractSolver {
 public:
   ~GaussSeidel();
+  void solvePressure();
 };
 
 }
