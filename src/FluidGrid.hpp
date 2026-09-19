@@ -64,7 +64,6 @@ public:
   void integrate(float dt, float gravity);
   void injectInlet(float speed);
 
-  void solvePressure(int numIter, float dt, float *pressure, float *s, float *v, float *u, int numCells, int numX, int numY);
   void applyPressure(float dt, float *pressure);
   /* Extrapolates velocity values near the border to border cells. */
   void extrapolate();
