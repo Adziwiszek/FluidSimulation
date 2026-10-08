@@ -306,7 +306,15 @@ void FluidGrid::simulate(float dt, int numIters) {
   integrate(dt, this->gravity);
 
   // Projection (make the fluid incompressible)
-  Solver::GaussSeidel::solvePressure(numIters, dt, this->pressure, this->s, this->v, this->u, constants);
+  Solver::GaussSeidel::solvePressure(
+    numIters, 
+    dt, 
+    this->pressure, 
+    this->s, 
+    this->v, 
+    this->u, 
+    constants
+  );
   applyPressure(dt, this->pressure);
 
   // Extrapolate values at the border cells

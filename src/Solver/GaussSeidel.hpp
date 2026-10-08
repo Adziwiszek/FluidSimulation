@@ -11,7 +11,8 @@ namespace Solver {
 class GaussSeidel : public AbstractSolver {
 public:
   ~GaussSeidel();
-  static void solvePressure(int numIter, float dt, float *pressure, float *s, float *v, float *u, simConstants constants);
+  static void solvePressure(int numIter, float dt, float *pressure, float *s, 
+    float *v, float *u, simConstants constants);
 };
 
 }

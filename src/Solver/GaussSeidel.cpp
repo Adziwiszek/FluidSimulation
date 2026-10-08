@@ -6,7 +6,7 @@ GaussSeidel::~GaussSeidel() {
 
 }
 
-static void solvePressure(int numIter, float dt, float *pressure, float *s, float *v, float *u, simConstants constants) {
+void GaussSeidel::solvePressure(int numIter, float dt, float *pressure, float *s, float *v, float *u, simConstants constants) {
   const int n = constants.numX;
 
   std::fill(pressure, pressure + constants.numCells, 0.0f);
