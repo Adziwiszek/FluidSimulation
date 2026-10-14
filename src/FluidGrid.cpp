@@ -13,7 +13,7 @@ FluidGrid::FluidGrid(float h, float overRelaxation, int numX, int numY)
   this->numX = numX + 2;
   this->numY = numY + 2;
   numCells = this->numX * this->numY;
-  constants = {density, overRelaxation, h, numCells, numX, numY};
+  constants = {density, overRelaxation, h, numCells, this->numX, this->numY};
 
   u = new float[numCells];
   v = new float[numCells];
